@@ -27,7 +27,7 @@ from api.auth_module import (
 from models.database import (
     get_engine, get_session_factory, init_db,
     Stage, Service, ServiceCategory, Deal, DealService,
-    Equipment, Maintenance, ExpenseCategory, Expense
+    Equipment, Maintenance, MaintenanceConsumable, Consumable, ExpenseCategory, Expense
 )
 from scripts.init_db import seed_database
 
@@ -185,11 +185,70 @@ class EquipmentCreate(BaseModel):
     status: str = "active"
     notes: str = ""
 
+class MaintenanceConsumableIn(BaseModel):
+    consumable_id: int
+    quantity: float
+    unit: str = "мл"
+
+class ConsumableCreate(BaseModel):
+    name: str
+    quantity: float
+    unit: str
+    total_cost: float
+    notes: str = ""
+
 class MaintenanceCreate(BaseModel):
     date: str
     description: str
     cost: float = 0
     performed_by: str = ""
+    consumables: List[MaintenanceConsumableIn] = []
+
+
+UNIT_ALIASES = {
+    "мл": "ml", "ml": "ml", "л": "l", "l": "l",
+    "г": "g", "гр": "g", "g": "g", "кг": "kg", "kg": "kg",
+    "шт": "pcs", "pcs": "pcs", "ед": "pcs",
+}
+
+
+def _to_base_unit(unit_raw: str):
+    u = UNIT_ALIASES.get((unit_raw or "").strip().lower())
+    if not u:
+        raise HTTPException(400, f"Неподдерживаемая единица '{unit_raw}'")
+    if u in ("ml", "l"):
+        return "ml"
+    if u in ("g", "kg"):
+        return "g"
+    return "pcs"
+
+
+def _convert_to_base(quantity: float, unit_raw: str, base_unit: str):
+    if quantity <= 0:
+        raise HTTPException(400, "Количество должно быть больше 0")
+    u = UNIT_ALIASES.get((unit_raw or "").strip().lower())
+    if not u:
+        raise HTTPException(400, f"Неподдерживаемая единица '{unit_raw}'")
+
+    if base_unit == "ml":
+        if u == "ml":
+            return quantity
+        if u == "l":
+            return quantity * 1000
+    elif base_unit == "g":
+        if u == "g":
+            return quantity
+        if u == "kg":
+            return quantity * 1000
+    elif base_unit == "pcs":
+        if u == "pcs":
+            return quantity
+
+    raise HTTPException(400, "Единица расходника не совпадает с единицей на складе")
+
+
+def _human_unit(base_unit: str):
+    return {"ml": "мл", "g": "г", "pcs": "шт"}.get(base_unit, base_unit)
 
 
 # ── STAGES ────────────────────────────────────
@@ -371,6 +430,39 @@ def get_deal(deal_id: int, db: DBSession = Depends(get_db)):
 
 # ── EQUIPMENT ─────────────────────────────────
 
+@app.get("/api/consumables")
+def get_consumables(db: DBSession = Depends(get_db), _=Depends(get_current_user)):
+    rows = db.query(Consumable).order_by(Consumable.name).all()
+    return [{
+        "id": c.id,
+        "name": c.name,
+        "base_unit": c.base_unit,
+        "unit": _human_unit(c.base_unit),
+        "stock_quantity": round(c.stock_quantity or 0, 3),
+        "price_per_unit": round(c.price_per_unit or 0, 4),
+        "stock_value": round((c.stock_quantity or 0) * (c.price_per_unit or 0), 2),
+        "notes": c.notes,
+    } for c in rows]
+
+
+@app.post("/api/consumables", status_code=201)
+def create_consumable(body: ConsumableCreate, db: DBSession = Depends(get_db), _=Depends(get_current_user)):
+    base_unit = _to_base_unit(body.unit)
+    qty_base = _convert_to_base(body.quantity, body.unit, base_unit)
+    if body.total_cost < 0:
+        raise HTTPException(400, "Стоимость не может быть отрицательной")
+    c = Consumable(
+        name=body.name.strip(),
+        base_unit=base_unit,
+        stock_quantity=qty_base,
+        price_per_unit=(body.total_cost / qty_base) if qty_base else 0,
+        notes=body.notes,
+    )
+    db.add(c)
+    db.commit()
+    return {"id": c.id, "name": c.name, "unit": _human_unit(c.base_unit), "stock_quantity": c.stock_quantity}
+
+
 @app.get("/api/equipment")
 def get_equipment(status: Optional[str] = Query(None), db: DBSession = Depends(get_db)):
     q = db.query(Equipment)
@@ -430,15 +522,28 @@ def get_maintenances(equipment_id: Optional[int] = Query(None), db: DBSession = 
     if equipment_id:
         q = q.filter(Maintenance.equipment_id == equipment_id)
     rows = q.order_by(Maintenance.date.desc()).all()
-    return [{
-        "id": m.id,
-        "equipment_id": m.equipment_id,
-        "equipment": m.equipment.name if m.equipment else None,
-        "date": str(m.date),
-        "description": m.description,
-        "cost": m.cost,
-        "performed_by": m.performed_by,
-    } for m in rows]
+    result = []
+    for m in rows:
+        items = [{
+            "id": i.id,
+            "consumable_id": i.consumable_id,
+            "consumable": i.consumable.name if i.consumable else None,
+            "quantity": i.quantity,
+            "unit": _human_unit(i.consumable.base_unit) if i.consumable else None,
+            "unit_cost": i.unit_cost,
+            "subtotal": i.subtotal,
+        } for i in m.consumables]
+        result.append({
+            "id": m.id,
+            "equipment_id": m.equipment_id,
+            "equipment": m.equipment.name if m.equipment else None,
+            "date": str(m.date),
+            "description": m.description,
+            "cost": round(sum(i["subtotal"] for i in items), 2) if items else m.cost,
+            "performed_by": m.performed_by,
+            "consumables": items,
+        })
+    return result
 
 
 @app.post("/api/equipment/{equipment_id}/maintenance")
@@ -447,16 +552,42 @@ def add_maintenance(equipment_id: int, body: MaintenanceCreate, db: DBSession = 
     if not eq:
         raise HTTPException(404, "Техника не найдена")
     maint_date = datetime.strptime(body.date, "%Y-%m-%d").date()
+
+    total_cost = 0.0
+    usage_rows = []
+    for row in body.consumables or []:
+        c = db.query(Consumable).get(row.consumable_id)
+        if not c:
+            raise HTTPException(404, f"Расходник {row.consumable_id} не найден")
+        qty_base = _convert_to_base(row.quantity, row.unit, c.base_unit)
+        if c.stock_quantity < qty_base:
+            raise HTTPException(400, f"Недостаточно '{c.name}' на складе. Остаток: {round(c.stock_quantity,3)} {_human_unit(c.base_unit)}")
+        subtotal = qty_base * (c.price_per_unit or 0)
+        usage_rows.append((c, qty_base, subtotal))
+        total_cost += subtotal
+
     m = Maintenance(equipment_id=equipment_id, date=maint_date,
-                    description=body.description, cost=body.cost, performed_by=body.performed_by)
+                    description=body.description, cost=round(total_cost, 2), performed_by=body.performed_by)
     db.add(m)
+    db.flush()
+
+    for c, qty_base, subtotal in usage_rows:
+        c.stock_quantity = (c.stock_quantity or 0) - qty_base
+        db.add(MaintenanceConsumable(
+            maintenance_id=m.id,
+            consumable_id=c.id,
+            quantity=qty_base,
+            unit_cost=c.price_per_unit or 0,
+            subtotal=round(subtotal, 2),
+        ))
+
     today = date.today()
     if maint_date <= today:
         eq.last_maintenance = maint_date
     else:
         eq.next_maintenance = maint_date
     db.commit()
-    return {"id": m.id, "equipment": eq.name, "date": str(maint_date)}
+    return {"id": m.id, "equipment": eq.name, "date": str(maint_date), "cost": m.cost}
 
 
 @app.patch("/api/equipment/{equipment_id}/status")

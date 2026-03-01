@@ -123,6 +123,37 @@ class Maintenance(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     equipment = relationship("Equipment", back_populates="maintenances")
+    consumables = relationship("MaintenanceConsumable", back_populates="maintenance", cascade="all, delete-orphan")
+
+
+class Consumable(Base):
+    """Складской учёт расходников/масел"""
+    __tablename__ = "consumables"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(200), nullable=False)
+    base_unit = Column(String(20), nullable=False, default="ml")  # ml | g | pcs
+    stock_quantity = Column(Float, default=0.0)
+    price_per_unit = Column(Float, default=0.0)
+    notes = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    maintenance_items = relationship("MaintenanceConsumable", back_populates="consumable")
+
+
+class MaintenanceConsumable(Base):
+    """Списания расходников в рамках ТО"""
+    __tablename__ = "maintenance_consumables"
+
+    id = Column(Integer, primary_key=True)
+    maintenance_id = Column(Integer, ForeignKey("maintenances.id"), nullable=False)
+    consumable_id = Column(Integer, ForeignKey("consumables.id"), nullable=False)
+    quantity = Column(Float, nullable=False)  # в base_unit расходника
+    unit_cost = Column(Float, nullable=False)
+    subtotal = Column(Float, nullable=False)
+
+    maintenance = relationship("Maintenance", back_populates="consumables")
+    consumable = relationship("Consumable", back_populates="maintenance_items")
 
 
 class ExpenseCategory(Base):

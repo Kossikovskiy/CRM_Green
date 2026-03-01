@@ -883,6 +883,7 @@ tr:hover td { background: var(--mist); color: var(--ink); }
     <button onclick="showPage('kanban',this)"><span>Сделки</span></button>
     <button onclick="showPage('expenses',this)"><span>Расходы</span></button>
     <button onclick="showPage('equipment',this)"><span>Техника</span></button>
+    <button onclick="showPage('stock',this)"><span>Склад</span></button>
     <button onclick="showPage('services',this)"><span>Прайс</span></button>
     <button onclick="showPage('contacts',this)"><span>Контакты</span></button>
   </nav>
@@ -1033,6 +1034,24 @@ tr:hover td { background: var(--mist); color: var(--ink); }
   </div>
 </div>
 
+
+<!-- ════ СКЛАД РАСХОДНИКОВ ════ -->
+<div class="page" id="page-stock">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;">
+    <div>
+      <div class="section-label"><div class="label-line"></div><span class="label-text">Склад</span></div>
+      <div class="page-title">Учёт <em>расходников</em></div>
+    </div>
+    <button class="btn" onclick="openConsumableModal()">+ Расходник</button>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Наименование</th><th>Остаток</th><th>Себест./ед.</th><th>Сумма на складе</th><th>Примечание</th></tr></thead>
+      <tbody id="consumables-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
 <!-- ════ ПРАЙС ════ -->
 <div class="page" id="page-services">
   <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;">
@@ -1120,6 +1139,25 @@ tr:hover td { background: var(--mist); color: var(--ink); }
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('modal-equip')">Отмена</button>
       <button class="btn-save" id="equip-save-btn" onclick="saveEquip()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Расходник на склад -->
+<div class="modal-overlay" id="modal-consumable">
+  <div class="modal">
+    <h2>Новый <em>расходник</em></h2>
+    <div class="form-group"><label>Наименование</label><input id="fc-name" placeholder="Масло 4Т"></div>
+    <div class="form-group"><label>Количество</label><input id="fc-qty" type="number" min="0.001" step="0.001" placeholder="5"></div>
+    <div class="form-group"><label>Единица</label>
+      <select id="fc-unit"><option>мл</option><option>л</option><option>г</option><option>кг</option><option>шт</option></select>
+    </div>
+    <div class="form-group"><label>Общая стоимость (₽)</label><input id="fc-cost" type="number" min="0" step="0.01" placeholder="1200"></div>
+    <div class="form-group"><label>Примечание</label><input id="fc-notes" placeholder="Канистра 5л"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-consumable')">Отмена</button>
+      <button class="btn-save" onclick="saveConsumable()">Добавить</button>
     </div>
   </div>
 </div>
@@ -1212,7 +1250,7 @@ async function apiFetch(path, opts={}) {
   }
 }
 
-let STAGES = [], deals = [], expenses = [], equipment = [], maintenances = [], contacts = [];
+let STAGES = [], deals = [], expenses = [], equipment = [], maintenances = [], contacts = [], consumables = [];
 let draggedDealId = null, dashYear = String(new Date().getFullYear()), contactsFilter = '';
 let currentEditingDealId = null, currentEditingEquipmentId = null;
 let kanbanFilter = { search:'', year:String(new Date().getFullYear()) };
@@ -1658,6 +1696,11 @@ function openMaintenanceModal() {
   const sel = document.getElementById('fm-equip');
   if (sel) sel.innerHTML = equipment.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
   document.getElementById('fm-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fm-desc').value='';
+  document.getElementById('fm-by').value='';
+  const box = document.getElementById('fm-consumables');
+  if (box) box.innerHTML='';
+  addMaintenanceConsumableRow();
   document.getElementById('modal-maintenance').classList.add('open');
 }
 
@@ -1694,6 +1737,75 @@ function openDealDetails(dealId) {
   document.getElementById('deal-delete-btn').style.display = isAdmin() ? 'block' : 'none';
   currentEditingDealId = dealId;
   document.getElementById('modal-deal').classList.add('open');
+}
+
+
+function renderConsumables() {
+  const tbody = document.getElementById('consumables-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = consumables.map(c => `
+    <tr>
+      <td>${c.name}</td>
+      <td>${Number(c.stock_quantity||0).toLocaleString('ru')} ${c.unit||''}</td>
+      <td class="money">${(c.price_per_unit||0).toLocaleString('ru')} ₽</td>
+      <td class="money">${(c.stock_value||0).toLocaleString('ru')} ₽</td>
+      <td>${c.notes||'—'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:#ccc;padding:24px;font-size:12px">Расходников пока нет</td></tr>';
+}
+
+function openConsumableModal() {
+  ['fc-name','fc-qty','fc-cost','fc-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fc-unit').value = 'мл';
+  document.getElementById('modal-consumable').classList.add('open');
+}
+
+async function saveConsumable() {
+  const name = document.getElementById('fc-name').value.trim();
+  const quantity = parseFloat(document.getElementById('fc-qty').value)||0;
+  const total_cost = parseFloat(document.getElementById('fc-cost').value)||0;
+  const unit = document.getElementById('fc-unit').value;
+  const notes = document.getElementById('fc-notes').value.trim();
+  if (!name || !quantity) { alert('Заполните наименование и количество'); return; }
+  const res = await apiFetch('/consumables', { method:'POST', body:JSON.stringify({ name, quantity, unit, total_cost, notes }) });
+  if (!res) return;
+  closeModal('modal-consumable');
+  await loadAll();
+  showToast('✅ Расходник добавлен');
+}
+
+function addMaintenanceConsumableRow() {
+  const box = document.getElementById('fm-consumables');
+  if (!box) return;
+  const idx = box.querySelectorAll('.mc-row').length;
+  const options = consumables.map(c=>`<option value="${c.id}" data-unit="${c.unit}">${c.name} (${Number(c.stock_quantity||0).toLocaleString('ru')} ${c.unit||''})</option>`).join('');
+  const row = document.createElement('div');
+  row.className = 'mc-row';
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin:6px 0;';
+  row.innerHTML = `
+    <select class="mc-consumable"><option value="">Выберите...</option>${options}</select>
+    <input class="mc-qty" type="number" min="0.001" step="0.001" placeholder="Количество">
+    <select class="mc-unit"><option>мл</option><option>л</option><option>г</option><option>кг</option><option>шт</option></select>
+    <button type="button" class="tiny-btn" onclick="this.closest('.mc-row').remove()">✕</button>
+  `;
+  box.appendChild(row);
+}
+
+function collectMaintenanceConsumables() {
+  const rows = [...document.querySelectorAll('#fm-consumables .mc-row')];
+  const payload = [];
+  for (const row of rows) {
+    const consumable_id = parseInt(row.querySelector('.mc-consumable').value, 10);
+    const quantity = parseFloat(row.querySelector('.mc-qty').value)||0;
+    const unit = row.querySelector('.mc-unit').value;
+    if (!consumable_id && !quantity) continue;
+    if (!consumable_id || !quantity) {
+      alert('Для расходников укажите и позицию, и количество');
+      return null;
+    }
+    payload.push({ consumable_id, quantity, unit });
+  }
+  return payload;
 }
 
 /* ── CRUD ОПЕРАЦИИ ── */
@@ -1738,10 +1850,11 @@ async function saveMaintenance() {
   const equipment_id = parseInt(document.getElementById('fm-equip').value,10);
   const date = document.getElementById('fm-date').value;
   const description = document.getElementById('fm-desc').value.trim();
-  const cost = parseFloat(document.getElementById('fm-cost').value)||0;
   const performed_by = document.getElementById('fm-by').value.trim();
+  const usedConsumables = collectMaintenanceConsumables();
+  if (usedConsumables === null) return;
   if (!equipment_id||!date||!description) { alert('Заполните технику, дату и работы'); return; }
-  const res = await apiFetch(`/equipment/${equipment_id}/maintenance`, { method:'POST', body:JSON.stringify({ date, description, cost, performed_by }) });
+  const res = await apiFetch(`/equipment/${equipment_id}/maintenance`, { method:'POST', body:JSON.stringify({ date, description, performed_by, consumables: usedConsumables }) });
   if (!res) return;
   closeModal('modal-maintenance'); await loadAll(); showToast('✅ ТО добавлено');
 }
@@ -1792,6 +1905,8 @@ async function loadAll() {
   if (equipData) equipment = equipData.map(e=>({ id:e.id, name:e.name, model:e.model, cost:e.purchase_cost, engine_hours:e.engine_hours||0, status:e.status, purchase_date:e.purchase_date||'', last_maintenance:e.last_maintenance||'', next_maintenance:e.next_maintenance||'', notes:e.notes||'' }));
   const maintData = await apiFetch('/maintenances');
   maintenances = Array.isArray(maintData) ? maintData : [];
+  const consData = await apiFetch('/consumables');
+  consumables = Array.isArray(consData) ? consData : [];
   loadContactsFromStorage();
   buildDashYearFilter();
   buildKanbanYearFilter();
@@ -1802,7 +1917,7 @@ async function loadAll() {
     catSel.innerHTML = '<option value="">Все категории</option>';
     [...new Set(expenses.map(e=>e.cat))].sort().forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
   }
-  renderExpenses(); buildEquipment(); renderServices();
+  renderExpenses(); buildEquipment(); renderConsumables(); renderServices();
   showToast('✅ Данные загружены');
 }
 
