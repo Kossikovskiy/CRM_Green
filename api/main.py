@@ -322,6 +322,16 @@ def update_deal(deal_id: int, body: DealUpdate, db: DBSession = Depends(get_db),
     return {"id": deal.id, "title": deal.title, "client": deal.client}
 
 
+@app.delete("/api/deals/{deal_id}", dependencies=[Depends(require_admin)])
+def delete_deal(deal_id: int, db: DBSession = Depends(get_db)):
+    deal = db.query(Deal).get(deal_id)
+    if not deal:
+        raise HTTPException(404, "Сделка не найдена")
+    db.delete(deal)
+    db.commit()
+    return {"detail": "Сделка удалена", "id": deal_id}
+
+
 @app.patch("/api/deals/{deal_id}/stage")
 def update_deal_stage(deal_id: int, body: StageUpdate, db: DBSession = Depends(get_db)):
     deal = db.query(Deal).get(deal_id)
@@ -367,6 +377,7 @@ def get_equipment(status: Optional[str] = Query(None), db: DBSession = Depends(g
         q = q.filter(Equipment.status == status)
     eqs = q.order_by(Equipment.name).all()
     return [{"id": e.id, "name": e.name, "model": e.model, "status": e.status,
+             "purchase_date": str(e.purchase_date) if e.purchase_date else None,
              "purchase_cost": e.purchase_cost,
              "last_maintenance": str(e.last_maintenance) if e.last_maintenance else None,
              "next_maintenance": str(e.next_maintenance) if e.next_maintenance else None,
@@ -387,6 +398,44 @@ def create_equipment(body: EquipmentCreate, db: DBSession = Depends(get_db)):
     db.add(eq)
     db.commit()
     return {"id": eq.id, "name": eq.name}
+
+
+@app.put("/api/equipment/{equipment_id}", dependencies=[Depends(require_admin)])
+def update_equipment(equipment_id: int, body: EquipmentCreate, db: DBSession = Depends(get_db)):
+    eq = db.query(Equipment).get(equipment_id)
+    if not eq:
+        raise HTTPException(404, "Техника не найдена")
+
+    eq.name = body.name
+    eq.model = body.model
+    eq.serial = body.serial
+    eq.purchase_cost = body.purchase_cost
+    eq.status = body.status
+    eq.notes = body.notes
+    if body.purchase_date:
+        try:
+            eq.purchase_date = datetime.strptime(body.purchase_date, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+    db.commit()
+    return {"id": eq.id, "name": eq.name}
+
+
+@app.get("/api/maintenances")
+def get_maintenances(equipment_id: Optional[int] = Query(None), db: DBSession = Depends(get_db)):
+    q = db.query(Maintenance)
+    if equipment_id:
+        q = q.filter(Maintenance.equipment_id == equipment_id)
+    rows = q.order_by(Maintenance.date.desc()).all()
+    return [{
+        "id": m.id,
+        "equipment_id": m.equipment_id,
+        "equipment": m.equipment.name if m.equipment else None,
+        "date": str(m.date),
+        "description": m.description,
+        "cost": m.cost,
+        "performed_by": m.performed_by,
+    } for m in rows]
 
 
 @app.post("/api/equipment/{equipment_id}/maintenance")
@@ -465,6 +514,16 @@ def create_expense(body: ExpenseCreate, db: DBSession = Depends(get_db), _=Depen
     db.add(exp)
     db.commit()
     return {"id": exp.id, "name": exp.name, "amount": exp.amount}
+
+
+@app.delete("/api/expenses/{expense_id}", dependencies=[Depends(require_admin)])
+def delete_expense(expense_id: int, db: DBSession = Depends(get_db)):
+    exp = db.query(Expense).get(expense_id)
+    if not exp:
+        raise HTTPException(404, "Расход не найден")
+    db.delete(exp)
+    db.commit()
+    return {"detail": "Расход удалён", "id": expense_id}
 
 
 # ── SERVICES ──────────────────────────────────
