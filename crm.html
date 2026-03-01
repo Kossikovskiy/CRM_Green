@@ -414,6 +414,85 @@
   .form-group input:focus, .form-group select:focus { border-color: var(--green-dim); }
   .form-group textarea { resize: vertical; min-height: 80px; }
 
+  .service-picker { position: relative; }
+  .service-picker-input-wrap { display: flex; gap: 8px; }
+  .service-picker-input-wrap input { flex: 1; }
+  .service-add-btn {
+    border: 1px dashed var(--green-dim);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--green);
+    font-family: var(--font-body);
+    font-size: 12px;
+    padding: 0 12px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .service-suggest {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% - 2px);
+    z-index: 5;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    display: none;
+  }
+  .service-suggest.open { display: block; }
+  .service-option {
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid var(--bg3);
+    cursor: pointer;
+  }
+  .service-option:hover { background: var(--card); }
+  .service-option:last-child { border-bottom: none; }
+  .service-option-name { color: var(--text); font-size: 12px; }
+  .service-option-meta { color: var(--text3); font-size: 11px; white-space: nowrap; }
+  .selected-services { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .selected-service-row {
+    display: grid;
+    grid-template-columns: 1fr 90px 64px 24px;
+    gap: 8px;
+    align-items: center;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+  .selected-service-row .name { font-size: 12px; color: var(--text); }
+  .selected-service-row .meta { font-size: 10px; color: var(--text3); }
+  .selected-service-row input {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .selected-service-row .sum { color: var(--green); font-size: 12px; text-align: right; }
+  .remove-service {
+    border: none;
+    background: transparent;
+    color: var(--text3);
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .selected-services-empty {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text3);
+    font-size: 11px;
+  }
+
   .modal-footer { display: flex; gap: 10px; margin-top: 20px; }
   .btn-cancel {
     flex: 1;
@@ -792,14 +871,15 @@
     <!-- ЗАМЕНЯЕМ это поле -->
     <div class="form-group">
       <label>Услуги</label>
-      <select id="f-services" multiple size="6" style="height: auto; min-height: 120px;">
-        <!-- услуги будут добавлены через JavaScript -->
-      </select>
-      <small style="color: var(--text3); display: block; margin-top: 5px; font-size: 10px;">✓ Удерживайте Ctrl для выбора нескольких услуг</small>
-    </div>
-    <div class="form-group" id="service-quantities" style="display: none;">
-      <label>Количество (для выбранных услуг)</label>
-      <div id="quantity-inputs"></div>
+      <div class="service-picker" id="deal-service-picker">
+        <div class="service-picker-input-wrap">
+          <input id="f-service-search" placeholder="Найти или добавить услугу">
+          <button type="button" class="service-add-btn" onclick="focusServiceSearch()">+ добавить</button>
+        </div>
+        <div class="service-suggest" id="service-suggest"></div>
+        <div class="selected-services" id="selected-services"></div>
+      </div>
+      <small style="color: var(--text3); display: block; margin-top: 5px; font-size: 10px;">Начните вводить название и выберите услугу из выпадающего списка</small>
     </div>
     <!-- Конец замены -->
     
@@ -1124,10 +1204,13 @@ function resetDealModalState() {
     saveBtn.setAttribute('onclick', 'saveDeal()');
   }
 
-  ['f-client', 'f-title', 'f-address', 'f-services', 'f-sum', 'f-notes'].forEach(id => {
+  ['f-client', 'f-title', 'f-address', 'f-sum', 'f-notes', 'f-service-search'].forEach(id => {
     const field = document.getElementById(id);
     if (field) field.value = '';
   });
+
+  fillSelectedServicesFromString('');
+  document.getElementById('service-suggest')?.classList.remove('open');
 }
 
 function openDealModal() {
@@ -1157,7 +1240,7 @@ function openDealDetails(dealId) {
   document.getElementById('f-client').value = deal.client || '';
   document.getElementById('f-title').value = deal.title || '';
   document.getElementById('f-address').value = deal.address || '';
-  document.getElementById('f-services').value = deal.services || '';
+  fillSelectedServicesFromString(deal.services || '');
   document.getElementById('f-sum').value = deal.sum || '';
   document.getElementById('f-notes').value = deal.notes || '';
   
@@ -1195,6 +1278,7 @@ async function saveDeal() {
       client, 
       notes: document.getElementById('f-notes').value, 
       address: document.getElementById('f-address').value,
+      services: getSelectedServices(),
       total: parseFloat(document.getElementById('f-sum').value) || 0
     })
   });
@@ -1469,127 +1553,162 @@ function checkAuth() {
 }
 // ========== НОВЫЙ КОД ДЛЯ УСЛУГ ==========
 
-// Загружает услуги в выпадающий список
-function loadServicesDropdown() {
-  const select = document.getElementById('f-services');
-  if (!select) return;
-  
-  // Группируем услуги по категориям
-  const grouped = {};
-  SERVICES.forEach(s => {
-    if (!grouped[s.cat]) grouped[s.cat] = [];
-    grouped[s.cat].push(s);
-  });
-  
-  select.innerHTML = '';
-  
-  // Добавляем опции по категориям
-  Object.keys(grouped).sort().forEach(cat => {
-    // Заголовок категории (невыбираемый)
-    const optgroup = document.createElement('optgroup');
-    optgroup.label = cat;
-    
-    // Услуги в категории
-    grouped[cat].sort((a, b) => a.name.localeCompare(b.name)).forEach(s => {
-      const option = document.createElement('option');
-      option.value = `${s.name}|${s.price}`; // Храним название и цену
-      option.textContent = `${s.name} — ${s.price} ₽/${s.unit}`;
-      option.dataset.unit = s.unit;
-      option.dataset.price = s.price;
-      option.dataset.name = s.name;
-      optgroup.appendChild(option);
-    });
-    
-    select.appendChild(optgroup);
-  });
-  
-  // Добавляем обработчик изменения выбора
-  select.removeEventListener('change', updateQuantityInputs);
-  select.addEventListener('change', updateQuantityInputs);
-}
+let selectedDealServices = [];
 
-// Обновляет поля ввода количества для выбранных услуг
-function updateQuantityInputs() {
-  const select = document.getElementById('f-services');
-  const container = document.getElementById('quantity-inputs');
-  const quantitiesDiv = document.getElementById('service-quantities');
-  
-  if (!select || !container || !quantitiesDiv) return;
-  
-  // Получаем выбранные опции
-  const selected = Array.from(select.selectedOptions);
-  
-  if (selected.length === 0) {
-    quantitiesDiv.style.display = 'none';
-    return;
-  }
-  
-  quantitiesDiv.style.display = 'block';
-  container.innerHTML = '';
-  
-  selected.forEach(option => {
-    const [name, price] = option.value.split('|');
-    const unit = option.dataset.unit || 'шт';
-    
-    const div = document.createElement('div');
-    div.style.marginBottom = '10px';
-    div.style.display = 'flex';
-    div.style.alignItems = 'center';
-    div.style.gap = '10px';
-    
-    div.innerHTML = `
-      <span style="flex: 2; font-size: 12px; color: var(--text);">${name}</span>
-      <input type="number" 
-             class="service-qty" 
-             data-service="${name}"
-             data-price="${price}"
-             min="0" 
-             step="0.1" 
-             value="0" 
-             style="flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 5px;">
-      <span style="flex: 0.5; font-size: 12px; color: var(--text2);">${unit}</span>
-    `;
-    
-    container.appendChild(div);
-  });
-  
-  // Добавляем обработчики для автоматического расчета суммы
-  document.querySelectorAll('.service-qty').forEach(input => {
-    input.addEventListener('input', calculateTotalFromServices);
-  });
-}
-
-// Рассчитывает общую сумму на основе выбранных услуг и их количества
-function calculateTotalFromServices() {
-  let total = 0;
-  const quantities = document.querySelectorAll('.service-qty');
-  
-  quantities.forEach(input => {
-    const qty = parseFloat(input.value) || 0;
-    const price = parseFloat(input.dataset.price) || 0;
-    total += qty * price;
-  });
-  
-  const sumInput = document.getElementById('f-sum');
-  if (sumInput) {
-    sumInput.value = Math.round(total);
+function focusServiceSearch() {
+  const input = document.getElementById('f-service-search');
+  if (input) {
+    input.focus();
+    renderServiceSuggestions(input.value.trim());
   }
 }
 
-// Собирает выбранные услуги в строку
-function getSelectedServices() {
-  const selected = [];
-  const quantities = document.querySelectorAll('.service-qty');
-  
-  quantities.forEach(input => {
-    const qty = parseFloat(input.value) || 0;
-    if (qty > 0) {
-      const serviceName = input.dataset.service;
-      selected.push(`${serviceName}:${qty}`);
+function initDealServicePicker() {
+  const input = document.getElementById('f-service-search');
+  const suggest = document.getElementById('service-suggest');
+  if (!input || !suggest) return;
+
+  input.addEventListener('focus', () => renderServiceSuggestions(input.value.trim()));
+  input.addEventListener('input', () => renderServiceSuggestions(input.value.trim()));
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') e.preventDefault();
+  });
+
+  document.addEventListener('click', e => {
+    const picker = document.getElementById('deal-service-picker');
+    if (picker && !picker.contains(e.target)) {
+      suggest.classList.remove('open');
     }
   });
-  
-  return selected.join(',');
+
+  renderSelectedServices();
+}
+
+function renderServiceSuggestions(search = '') {
+  const suggest = document.getElementById('service-suggest');
+  if (!suggest) return;
+
+  const q = search.toLowerCase();
+  const filtered = SERVICES
+    .filter(s => !selectedDealServices.some(item => item.name === s.name))
+    .filter(s => !q || s.name.toLowerCase().includes(q) || s.cat.toLowerCase().includes(q))
+    .slice(0, 12);
+
+  if (!filtered.length) {
+    suggest.innerHTML = '<div class="service-option"><span class="service-option-name">Ничего не найдено</span></div>';
+    suggest.classList.add('open');
+    return;
+  }
+
+  suggest.innerHTML = filtered.map(s => `
+    <div class="service-option" onclick="addServiceToDeal('${s.name.replace(/'/g, "\\'")}')">
+      <div>
+        <div class="service-option-name">${s.name}</div>
+        <div class="service-option-meta">${s.cat}</div>
+      </div>
+      <div class="service-option-meta">${s.price.toLocaleString('ru')} ₽/${s.unit}</div>
+    </div>
+  `).join('');
+
+  suggest.classList.add('open');
+}
+
+function addServiceToDeal(serviceName) {
+  const service = SERVICES.find(s => s.name === serviceName);
+  if (!service || selectedDealServices.some(item => item.name === service.name)) return;
+
+  selectedDealServices.push({
+    name: service.name,
+    price: service.price,
+    unit: service.unit,
+    qty: service.min || 1
+  });
+
+  const input = document.getElementById('f-service-search');
+  if (input) input.value = '';
+
+  renderSelectedServices();
+  calculateTotalFromServices();
+  renderServiceSuggestions('');
+}
+
+function removeSelectedService(name) {
+  selectedDealServices = selectedDealServices.filter(item => item.name !== name);
+  renderSelectedServices();
+  calculateTotalFromServices();
+}
+
+function updateSelectedServiceQty(name, val) {
+  const service = selectedDealServices.find(item => item.name === name);
+  if (!service) return;
+  service.qty = Math.max(0, parseFloat(val) || 0);
+  calculateTotalFromServices();
+  renderSelectedServices();
+}
+
+function renderSelectedServices() {
+  const box = document.getElementById('selected-services');
+  if (!box) return;
+
+  if (!selectedDealServices.length) {
+    box.innerHTML = '<div class="selected-services-empty">Услуги не добавлены</div>';
+    return;
+  }
+
+  box.innerHTML = selectedDealServices.map(item => `
+    <div class="selected-service-row">
+      <div>
+        <div class="name">${item.name}</div>
+        <div class="meta">${item.price.toLocaleString('ru')} ₽ / ${item.unit}</div>
+      </div>
+      <input type="number" min="0" step="0.1" value="${item.qty}" onchange="updateSelectedServiceQty('${item.name.replace(/'/g, "\\'")}', this.value)">
+      <div class="sum">${Math.round(item.qty * item.price).toLocaleString('ru')} ₽</div>
+      <button class="remove-service" type="button" onclick="removeSelectedService('${item.name.replace(/'/g, "\\'")}')">×</button>
+    </div>
+  `).join('');
+}
+
+function calculateTotalFromServices() {
+  const sumInput = document.getElementById('f-sum');
+  if (!sumInput) return;
+
+  const total = selectedDealServices.reduce((acc, item) => acc + item.qty * item.price, 0);
+  sumInput.value = Math.round(total);
+}
+
+function getSelectedServices() {
+  return selectedDealServices
+    .filter(item => item.qty > 0)
+    .map(item => `${item.name}:${item.qty}`)
+    .join(',');
+}
+
+function fillSelectedServicesFromString(rawServices = '') {
+  selectedDealServices = [];
+  if (!rawServices) {
+    renderSelectedServices();
+    return;
+  }
+
+  rawServices
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+    .forEach(pair => {
+      const [rawName, rawQty] = pair.split(':');
+      const name = (rawName || '').trim();
+      if (!name) return;
+
+      const source = SERVICES.find(s => s.name === name);
+      selectedDealServices.push({
+        name,
+        price: source?.price || 0,
+        unit: source?.unit || 'шт',
+        qty: Math.max(0, parseFloat(rawQty) || 0)
+      });
+    });
+
+  renderSelectedServices();
 }
 
 // Инициализация при загрузке страницы
@@ -1603,8 +1722,8 @@ document.addEventListener('DOMContentLoaded', function() {
   // Рендерим прайс (он не требует API)
   renderServices();
   
-  // Загружаем услуги в выпадающий список
-  loadServicesDropdown();
+  // Инициализируем блок выбора услуг
+  initDealServicePicker();
 });
 </script>
 </div><!-- /app -->
