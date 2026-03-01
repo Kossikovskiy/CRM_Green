@@ -776,9 +776,8 @@
     <select class="filter-sel" onchange="filterExpensesCat(this.value)" id="cat-filter">
       <option value="">Все категории</option>
     </select>
-    <select class="filter-sel" onchange="filterExpensesYear(this.value)">
-      <option value="2025">2025</option>
-      <option value="2024">2024</option>
+    <select class="filter-sel" onchange="filterExpensesYear(this.value)" id="exp-year-filter">
+      <option value="">Все годы</option>
     </select>
     <button class="btn ml" onclick="openExpenseModal()">+ Расход</button>
   </div>
@@ -1074,9 +1073,9 @@ function buildDashYearFilter() {
   select.value = dashYear;
 }
 
-async function changeDashYear(year) {
+function changeDashYear(year) {
   dashYear = year;
-  await loadAll();
+  buildDash();
 }
 
 function buildDash() {
@@ -1244,7 +1243,7 @@ function filterKanban(val) { buildKanban(val); }
 //  РАСХОДЫ
 // ════════════════════════════════════════
 
-let expFilter = { search:'', cat:'', year:'2025' };
+let expFilter = { search:'', cat:'', year:'' };
 
 function renderExpenses() {
   let filtered = expenses.filter(e => {
@@ -1272,6 +1271,17 @@ function renderExpenses() {
 function filterExpenses(val) { expFilter.search = val; renderExpenses(); }
 function filterExpensesCat(val) { expFilter.cat = val; renderExpenses(); }
 function filterExpensesYear(val) { expFilter.year = val; renderExpenses(); }
+
+function buildExpenseYearFilter() {
+  const yearSel = document.getElementById('exp-year-filter');
+  if (!yearSel) return;
+
+  const years = [...new Set(expenses.map(e => (e.date || '').slice(0, 4)).filter(Boolean))]
+    .sort((a, b) => Number(b) - Number(a));
+
+  yearSel.innerHTML = '<option value="">Все годы</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+  yearSel.value = expFilter.year || '';
+}
 
 // ════════════════════════════════════════
 //  ТЕХНИКА
@@ -1683,7 +1693,7 @@ async function loadAll() {
   if (stagesData) STAGES = stagesData.map(s => ({ ...s, color: s.color || '#6B7280' }));
 
   // Сделки
-  const dealsData = await apiFetch(`/deals?year=${dashYear}`);
+  const dealsData = await apiFetch('/deals');
   if (dealsData && dealsData.deals) {
     deals = dealsData.deals.map(d => ({
   id: d.id,
@@ -1732,6 +1742,8 @@ async function loadAll() {
   buildKanban();
 
   // Обновляем фильтры расходов
+  buildExpenseYearFilter();
+
   const catSel = document.getElementById('cat-filter');
   if (catSel) {
     catSel.innerHTML = '<option value="">Все категории</option>';
