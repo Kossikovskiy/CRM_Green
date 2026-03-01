@@ -1,0 +1,1622 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌿 GreenCRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Geologica:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e1208;
+    --bg2: #151a0d;
+    --bg3: #1c2412;
+    --card: #1f2914;
+    --card2: #253016;
+    --border: #2e3d1a;
+    --green: #7ec832;
+    --green2: #5a9e1f;
+    --green-dim: #3a5c14;
+    --yellow: #d4a017;
+    --red: #c0392b;
+    --blue: #2980b9;
+    --purple: #8e44ad;
+    --text: #e8f0d0;
+    --text2: #9aad72;
+    --text3: #5a6e3a;
+    --font-display: 'Bebas Neue', sans-serif;
+    --font-body: 'Geologica', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-weight: 300;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── ШАПКА ── */
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--font-display);
+    font-size: 28px;
+    letter-spacing: 3px;
+    color: var(--green);
+    margin-right: auto;
+  }
+  .logo span { color: var(--text3); }
+
+  nav { display: flex; gap: 2px; }
+
+  nav button {
+    background: none;
+    border: none;
+    color: var(--text3);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  nav button:hover { color: var(--text2); background: var(--bg3); }
+  nav button.active { color: var(--green); background: var(--green-dim); }
+
+  .header-stat {
+    margin-left: 24px;
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+  }
+  .header-stat .val {
+    font-family: var(--font-display);
+    font-size: 20px;
+    letter-spacing: 1px;
+    color: var(--green);
+    line-height: 1;
+  }
+  .header-stat .lbl {
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ── СТРАНИЦЫ ── */
+  .page { display: none; padding: 24px; animation: fadeIn .3s ease; }
+  .page.active { display: block; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* ── ДАШБОРД ── */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .kpi:hover { border-color: var(--green-dim); }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--green);
+    opacity: .6;
+  }
+  .kpi .icon { font-size: 28px; margin-bottom: 12px; }
+  .kpi .val {
+    font-family: var(--font-display);
+    font-size: 36px;
+    letter-spacing: 1px;
+    color: var(--green);
+    line-height: 1;
+  }
+  .kpi .lbl { font-size: 12px; color: var(--text3); margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+  .kpi .sub { font-size: 12px; color: var(--text2); margin-top: 8px; }
+
+  .dash-bottom { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .card-head {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-head h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text3);
+    font-weight: 500;
+  }
+  .card-body { padding: 16px 20px; }
+
+  /* месячный график */
+  .bar-chart { display: flex; align-items: flex-end; gap: 6px; height: 120px; }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .bar {
+    width: 100%;
+    background: var(--green-dim);
+    border-radius: 4px 4px 0 0;
+    transition: background .2s;
+    position: relative;
+    cursor: pointer;
+    min-height: 4px;
+  }
+  .bar:hover { background: var(--green); }
+  .bar-lbl { font-size: 9px; color: var(--text3); text-transform: uppercase; }
+
+  /* категории расходов */
+  .expense-list { display: flex; flex-direction: column; gap: 10px; }
+  .expense-row { display: flex; align-items: center; gap: 10px; }
+  .expense-row .name { font-size: 12px; color: var(--text2); flex: 1; }
+  .expense-row .bar-bg { flex: 2; height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+  .expense-row .bar-fill { height: 100%; background: var(--yellow); border-radius: 3px; transition: width .8s ease; }
+  .expense-row .amt { font-size: 12px; color: var(--text); width: 70px; text-align: right; }
+
+  /* ── КАНБАН ── */
+  .kanban { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 16px; }
+
+  .kanban-col {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    width: 240px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 120px);
+  }
+
+  .col-head {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .col-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .col-head h4 { font-size: 12px; font-weight: 500; letter-spacing: .5px; flex: 1; color: var(--text2); }
+  .col-count {
+    background: var(--bg3);
+    color: var(--text3);
+    font-size: 11px;
+    padding: 1px 7px;
+    border-radius: 99px;
+  }
+
+  .col-cards { padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .col-cards::-webkit-scrollbar { width: 3px; }
+  .col-cards::-webkit-scrollbar-track { background: transparent; }
+  .col-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .deal-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .deal-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--green);
+    opacity: 0;
+    transition: opacity .2s;
+  }
+  .deal-card:hover { border-color: var(--green-dim); transform: translateY(-1px); }
+  .deal-card:hover::before { opacity: 1; }
+
+  .deal-client { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+  .deal-title { font-size: 11px; color: var(--text3); margin-bottom: 8px; line-height: 1.4; }
+  .deal-footer { display: flex; justify-content: space-between; align-items: center; }
+  .deal-sum { font-family: var(--font-display); font-size: 16px; color: var(--green); letter-spacing: .5px; }
+  .deal-date { font-size: 10px; color: var(--text3); }
+
+  /* ── ТАБЛИЦЫ ── */
+  .table-toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+
+  .search-input {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 8px 14px;
+    outline: none;
+    transition: border-color .2s;
+    width: 240px;
+  }
+  .search-input:focus { border-color: var(--green-dim); }
+  .search-input::placeholder { color: var(--text3); }
+
+  select.filter-sel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text2);
+    font-family: var(--font-body);
+    font-size: 12px;
+    padding: 8px 12px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .btn {
+    background: var(--green-dim);
+    border: 1px solid var(--green2);
+    border-radius: 8px;
+    color: var(--green);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .btn:hover { background: var(--green2); color: #fff; }
+  .btn.ml { margin-left: auto; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text3);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 11px 14px; border-bottom: 1px solid var(--bg3); color: var(--text2); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--card2); color: var(--text); }
+
+  .badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-weight: 500;
+    letter-spacing: .3px;
+  }
+
+  .money { font-family: var(--font-display); font-size: 15px; color: var(--green); letter-spacing: .5px; }
+
+  /* ── ТЕХНИКА ── */
+  .equip-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+
+  .equip-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+    transition: all .2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .equip-card:hover { border-color: var(--green-dim); }
+
+  .equip-icon { font-size: 32px; margin-bottom: 10px; }
+  .equip-name { font-size: 14px; font-weight: 500; color: var(--text); margin-bottom: 2px; }
+  .equip-model { font-size: 12px; color: var(--text3); margin-bottom: 12px; }
+  .equip-footer { display: flex; justify-content: space-between; align-items: center; }
+  .equip-cost { font-size: 12px; color: var(--text3); }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .4; }
+  }
+
+  /* ── МОДАЛЬНОЕ ОКНО ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.7);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalIn .25s ease;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: none; } }
+
+  .modal h2 {
+    font-family: var(--font-display);
+    font-size: 24px;
+    letter-spacing: 2px;
+    color: var(--green);
+    margin-bottom: 20px;
+  }
+
+  .form-group { margin-bottom: 14px; }
+  .form-group label { display: block; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 5px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 13px;
+    padding: 10px 12px;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--green-dim); }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+
+  .modal-footer { display: flex; gap: 10px; margin-top: 20px; }
+  .btn-cancel {
+    flex: 1;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text3);
+    font-family: var(--font-body);
+    font-size: 12px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-cancel:hover { color: var(--text); }
+  .btn-save {
+    flex: 2;
+    background: var(--green-dim);
+    border: 1px solid var(--green2);
+    border-radius: 8px;
+    color: var(--green);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 10px;
+    cursor: pointer;
+    transition: all .2s;
+    text-transform: uppercase;
+    letter-spacing: .8px;
+  }
+  .btn-save:hover { background: var(--green2); color: #fff; }
+
+  /* ── УВЕДОМЛЕНИЕ ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--card2);
+    border: 1px solid var(--green-dim);
+    border-radius: 10px;
+    padding: 12px 20px;
+    font-size: 13px;
+    color: var(--green);
+    z-index: 300;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all .3s ease;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+
+  /* ── СКРОЛЛБАР ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── АДАПТИВ ── */
+  @media (max-width: 768px) {
+    .dash-grid { grid-template-columns: repeat(2, 1fr); }
+    .dash-bottom { grid-template-columns: 1fr; }
+    nav button span { display: none; }
+  }
+  @media (max-width: 480px) {
+    .dash-grid { grid-template-columns: 1fr 1fr; }
+    header { padding: 0 12px; }
+    .header-stat { display: none; }
+  }
+
+  /* ── ЭКРАН ВХОДА ── */
+  #login-screen {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    background: var(--bg);
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+  }
+  .login-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    width: 360px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .login-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--green-dim), var(--green), var(--green-dim));
+  }
+  .login-logo {
+    font-family: var(--font-display);
+    font-size: 42px;
+    letter-spacing: 4px;
+    color: var(--green);
+    margin-bottom: 4px;
+  }
+  .login-logo span { color: var(--text3); }
+  .login-sub {
+    font-size: 12px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 36px;
+  }
+  .login-field {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    padding: 13px 16px;
+    width: 100%;
+    outline: none;
+    transition: border-color .2s;
+    margin-bottom: 12px;
+  }
+  .login-field:focus { border-color: var(--green-dim); }
+  .login-field::placeholder { color: var(--text3); }
+  .login-btn {
+    background: var(--green-dim);
+    border: 1px solid var(--green2);
+    border-radius: 10px;
+    color: var(--green);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    padding: 14px;
+    width: 100%;
+    cursor: pointer;
+    transition: all .2s;
+    margin-top: 4px;
+  }
+  .login-btn:hover { background: var(--green2); color: #fff; }
+  .login-error {
+    color: #ef4444;
+    font-size: 12px;
+    margin-top: 12px;
+    min-height: 18px;
+  }
+  .login-footer { margin-top: 28px; font-size: 11px; color: var(--text3); }
+  #app { display: none; }
+
+</style>
+</head>
+<body>
+
+<!-- ════ ЭКРАН ВХОДА ════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">GREEN<span>CRM</span></div>
+    <div class="login-sub">Система управления бизнесом</div>
+    <input class="login-field" id="l-user" type="text" placeholder="Логин" autocomplete="username"
+      onkeydown="if(event.key==='Enter') document.getElementById('l-pass').focus()">
+    <input class="login-field" id="l-pass" type="password" placeholder="Пароль" autocomplete="current-password"
+      onkeydown="if(event.key==='Enter') doLogin()">
+    <button class="login-btn" onclick="doLogin()">Войти</button>
+    <div class="login-error" id="l-err"></div>
+    <div class="login-footer">🌿 GreenCRM &nbsp;·&nbsp; Только для сотрудников</div>
+  </div>
+</div>
+
+<!-- ════ ПРИЛОЖЕНИЕ ════ -->
+<div id="app">
+
+<!-- ШАПКА -->
+<header>
+  <div class="logo">GREEN<span>CRM</span></div>
+  <nav>
+    <button class="active" onclick="showPage('dash',this)">📊 <span>Дашборд</span></button>
+    <button onclick="showPage('kanban',this)">🗂 <span>Сделки</span></button>
+    <button onclick="showPage('expenses',this)">💸 <span>Расходы</span></button>
+    <button onclick="showPage('equipment',this)">🔧 <span>Техника</span></button>
+    <button onclick="showPage('services',this)">🌿 <span>Прайс</span></button>
+  </nav>
+  <div class="header-stat">
+    <div class="val" id="hdr-revenue">—</div>
+    <div class="lbl">Выручка 2025</div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════
+     ДАШБОРД
+════════════════════════════════════════ -->
+<div class="page active" id="page-dash">
+
+  <div class="dash-grid">
+    <div class="kpi">
+      <div class="icon">💰</div>
+      <div class="val" id="kpi-revenue">—</div>
+      <div class="lbl">Выручка 2025</div>
+      <div class="sub" id="kpi-deals-count">— успешных сделок</div>
+    </div>
+    <div class="kpi" style="--green:#d4a017">
+      <div class="icon">📉</div>
+      <div class="val" id="kpi-expenses" style="color:var(--yellow)">—</div>
+      <div class="lbl">Расходы 2025</div>
+      <div class="sub" id="kpi-exp-count">— записей</div>
+    </div>
+    <div class="kpi" style="">
+      <div class="icon">📈</div>
+      <div class="val" id="kpi-profit">—</div>
+      <div class="lbl">Прибыль 2025</div>
+      <div class="sub" id="kpi-margin">маржа —%</div>
+    </div>
+    <div class="kpi">
+      <div class="icon">🔧</div>
+      <div class="val" id="kpi-equip">—</div>
+      <div class="lbl">Единиц техники</div>
+      <div class="sub" id="kpi-repair">— в ремонте</div>
+    </div>
+  </div>
+
+  <div class="dash-bottom">
+    <!-- График по месяцам -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Выручка по месяцам (2025)</h3>
+      </div>
+      <div class="card-body">
+        <div class="bar-chart" id="bar-chart"></div>
+      </div>
+    </div>
+
+    <!-- Расходы по категориям -->
+    <div class="card">
+      <div class="card-head">
+        <h3>Расходы по категориям</h3>
+      </div>
+      <div class="card-body">
+        <div class="expense-list" id="exp-cat-list"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════════════════════
+     КАНБАН
+════════════════════════════════════════ -->
+<div class="page" id="page-kanban">
+  <div class="table-toolbar">
+    <input class="search-input" placeholder="🔍  Поиск клиента..." oninput="filterKanban(this.value)">
+    <button class="btn ml" onclick="openDealModal()">+ Новая сделка</button>
+  </div>
+  <div class="kanban" id="kanban-board"></div>
+</div>
+
+<!-- ════════════════════════════════════════
+     РАСХОДЫ
+════════════════════════════════════════ -->
+<div class="page" id="page-expenses">
+  <div class="table-toolbar">
+    <input class="search-input" placeholder="🔍  Поиск расхода..." oninput="filterExpenses(this.value)">
+    <select class="filter-sel" onchange="filterExpensesCat(this.value)" id="cat-filter">
+      <option value="">Все категории</option>
+    </select>
+    <select class="filter-sel" onchange="filterExpensesYear(this.value)">
+      <option value="2025">2025</option>
+      <option value="2024">2024</option>
+    </select>
+    <button class="btn ml" onclick="openExpenseModal()">+ Расход</button>
+  </div>
+  <div class="card">
+    <table id="exp-table">
+      <thead>
+        <tr>
+          <th>Дата</th>
+          <th>Наименование</th>
+          <th>Категория</th>
+          <th>Техника</th>
+          <th>Сумма</th>
+        </tr>
+      </thead>
+      <tbody id="exp-tbody"></tbody>
+    </table>
+  </div>
+  <div style="margin-top:12px; text-align:right; font-size:13px; color:var(--text3)">
+    Итого: <span class="money" id="exp-total">—</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     ТЕХНИКА
+════════════════════════════════════════ -->
+<div class="page" id="page-equipment">
+  <div class="table-toolbar">
+    <button class="btn ml" onclick="openEquipModal()">+ Добавить технику</button>
+  </div>
+  <div class="equip-grid" id="equip-grid"></div>
+</div>
+
+<!-- ════════════════════════════════════════
+     ПРАЙС-ЛИСТ
+════════════════════════════════════════ -->
+<div class="page" id="page-services">
+  <div class="table-toolbar">
+    <input class="search-input" placeholder="🔍  Поиск услуги..." oninput="filterServices(this.value)">
+    <select class="filter-sel" onchange="filterServicesCat(this.value)">
+      <option value="">Все категории</option>
+    </select>
+  </div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Услуга</th><th>Категория</th><th>Единица</th><th>Мин. объём</th><th>Цена</th></tr>
+      </thead>
+      <tbody id="svc-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════
+     МОДАЛЬНЫЕ ОКНА
+════════════════════════════════════════ -->
+
+<!-- Новая сделка -->
+<div class="modal-overlay" id="modal-deal">
+  <div class="modal">
+    <h2>НОВАЯ СДЕЛКА</h2>
+    <div class="form-group"><label>Клиент</label><input id="f-client" placeholder="Иванов А.П."></div>
+    <div class="form-group"><label>Название</label><input id="f-title" placeholder="Покос участка, 10 соток"></div>
+    <div class="form-group"><label>Адрес</label><input id="f-address" placeholder="ул. Лесная, 12"></div>
+  <div class="form-group">
+  <label>Услуги</label>
+  <select id="f-services" multiple size="6" style="height: auto; min-height: 120px;">
+    <!-- услуги будут добавлены через JavaScript -->
+  </select>
+  <small style="color: var(--text3); display: block; margin-top: 5px; font-size: 10px;">✓ Удерживайте Ctrl для выбора нескольких услуг</small>
+</div>
+<div class="form-group" id="service-quantities" style="display: none;">
+  <label>Количество (для выбранных услуг)</label>
+  <div id="quantity-inputs"></div>
+</div>
+    <div class="form-group"><label>Сумма (₽)</label><input id="f-sum" type="number" placeholder="5000"></div>
+    <div class="form-group"><label>Примечание</label><input id="f-notes" placeholder="..."></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-deal')">Отмена</button>
+      <button class="btn-save" onclick="saveDeal()">Создать сделку</button>
+    </div>
+  </div>
+</div>
+
+<!-- Новый расход -->
+<div class="modal-overlay" id="modal-expense">
+  <div class="modal">
+    <h2>НОВЫЙ РАСХОД</h2>
+    <div class="form-group"><label>Дата</label><input id="fe-date" type="date"></div>
+    <div class="form-group"><label>Наименование</label><input id="fe-name" placeholder="Бензин АИ-92"></div>
+    <div class="form-group"><label>Категория</label>
+      <select id="fe-cat">
+        <option>Топливо</option><option>Расходники</option><option>Тех. жидкости/запчасти</option>
+        <option>Техника</option><option>Реклама</option><option>Инструмент</option><option>Оснастка</option><option>Прочее</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Сумма (₽)</label><input id="fe-amount" type="number" placeholder="5000"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-expense')">Отмена</button>
+      <button class="btn-save" onclick="saveExpense()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Новая техника -->
+<div class="modal-overlay" id="modal-equip">
+  <div class="modal">
+    <h2>НОВАЯ ТЕХНИКА</h2>
+    <div class="form-group"><label>Название</label><input id="feq-name" placeholder="Газонокосилка"></div>
+    <div class="form-group"><label>Модель</label><input id="feq-model" placeholder="Husqvarna LC 353V"></div>
+    <div class="form-group"><label>Стоимость покупки (₽)</label><input id="feq-cost" type="number" placeholder="45000"></div>
+    <div class="form-group"><label>Статус</label>
+      <select id="feq-status">
+        <option value="active">✅ Активна</option>
+        <option value="repair">🔧 В ремонте</option>
+        <option value="retired">❌ Списана</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Примечание</label><input id="feq-notes" placeholder="..."></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-equip')">Отмена</button>
+      <button class="btn-save" onclick="saveEquip()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ТОСТ -->
+<div class="toast" id="toast">✅ Сохранено!</div>
+<!-- Новая сделка (исправленная) -->
+<div class="modal-overlay" id="modal-deal">
+  <div class="modal">
+    <h2>НОВАЯ СДЕЛКА</h2>
+    <div class="form-group"><label>Клиент</label><input id="f-client" placeholder="Иванов А.П."></div>
+    <div class="form-group"><label>Название</label><input id="f-title" placeholder="Покос участка, 10 соток"></div>
+    <div class="form-group"><label>Адрес</label><input id="f-address" placeholder="ул. Лесная, 12"></div>
+    
+    <!-- ЗАМЕНЯЕМ это поле -->
+    <div class="form-group">
+      <label>Услуги</label>
+      <select id="f-services" multiple size="6" style="height: auto; min-height: 120px;">
+        <!-- услуги будут добавлены через JavaScript -->
+      </select>
+      <small style="color: var(--text3); display: block; margin-top: 5px; font-size: 10px;">✓ Удерживайте Ctrl для выбора нескольких услуг</small>
+    </div>
+    <div class="form-group" id="service-quantities" style="display: none;">
+      <label>Количество (для выбранных услуг)</label>
+      <div id="quantity-inputs"></div>
+    </div>
+    <!-- Конец замены -->
+    
+    <div class="form-group"><label>Сумма (₽)</label><input id="f-sum" type="number" placeholder="5000"></div>
+    <div class="form-group"><label>Примечание</label><input id="f-notes" placeholder="..."></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-deal')">Отмена</button>
+      <button class="btn-save" onclick="saveDeal()">Создать сделку</button>
+    </div>
+  </div>
+</div>
+<script>
+// ════════════════════════════════════════
+//  API — подключение к серверу
+// ════════════════════════════════════════
+
+const API = 'http://localhost:8000/api';
+
+async function apiFetch(path, opts={}) {
+  try {
+    const token = sessionStorage.getItem('crm_token') || '';
+    const res = await fetch(API + path, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': token ? 'Bearer ' + token : ''
+      },
+      ...opts
+    });
+    
+    // Если токен протух — показываем экран входа
+    if (res.status === 401) {
+      sessionStorage.clear();
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+      return null;
+    }
+    
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(errorText);
+    }
+    
+    return await res.json();
+  } catch(e) {
+    console.error('API error:', e);
+    showToast('❌ Ошибка соединения с сервером');
+    return null;
+  }
+}
+
+// ════════════════════════════════════════
+//  ДАННЫЕ (загружаются из API)
+// ════════════════════════════════════════
+
+let STAGES = [];
+let deals = [];
+let expenses = [];
+let equipment = [];
+
+const SERVICES = [
+  { name:'Покос травы (до 20 см)',         cat:'Покос травы',         unit:'сотка', min:3,  price:350  },
+  { name:'Покос травы (20-40 см)',          cat:'Покос травы',         unit:'сотка', min:3,  price:450  },
+  { name:'Покос травы (40-70 см)',          cat:'Покос травы',         unit:'сотка', min:3,  price:600  },
+  { name:'Покос травы (более 70 см)',       cat:'Покос травы',         unit:'сотка', min:3,  price:800  },
+  { name:'Покос на откосах/склонах',       cat:'Покос травы',         unit:'сотка', min:2,  price:700  },
+  { name:'Обкос препятствий (триммер)',    cat:'Покос травы',         unit:'час',   min:1,  price:800  },
+  { name:'Покос камышей/тростника',        cat:'Покос травы',         unit:'сотка', min:2,  price:900  },
+  { name:'Сгребание и сборка травы',       cat:'Уборка и вывоз',      unit:'сотка', min:3,  price:200  },
+  { name:'Вывоз растительных остатков',    cat:'Уборка и вывоз',      unit:'м³',    min:1,  price:800  },
+  { name:'Уборка листьев',                cat:'Уборка и вывоз',      unit:'сотка', min:3,  price:300  },
+  { name:'Вывоз листьев',                 cat:'Уборка и вывоз',      unit:'м³',    min:1,  price:700  },
+  { name:'Уборка и вывоз мусора',         cat:'Уборка и вывоз',      unit:'м³',    min:1,  price:900  },
+  { name:'Уборка веток',                  cat:'Уборка и вывоз',      unit:'м³',    min:1,  price:600  },
+  { name:'Вертикуляция (скарификация)',   cat:'Газон и почва',       unit:'сотка', min:3,  price:600  },
+  { name:'Аэрация газона',               cat:'Газон и почва',       unit:'сотка', min:3,  price:500  },
+  { name:'Пескование газона',            cat:'Газон и почва',       unit:'сотка', min:3,  price:400  },
+  { name:'Подсев газона',               cat:'Газон и почва',       unit:'сотка', min:3,  price:500  },
+  { name:'Посев нового газона',          cat:'Газон и почва',       unit:'сотка', min:3,  price:1200 },
+  { name:'Планировка и выравнивание',   cat:'Газон и почва',       unit:'сотка', min:2,  price:1500 },
+  { name:'Завоз грунта',               cat:'Газон и почва',       unit:'м³',    min:1,  price:2500 },
+  { name:'Обработка от сорняков',       cat:'Обработки',           unit:'сотка', min:3,  price:250  },
+  { name:'Обработка от вредителей',     cat:'Обработки',           unit:'сотка', min:3,  price:300  },
+  { name:'Обработка от клещей',         cat:'Обработки',           unit:'сотка', min:3,  price:350  },
+  { name:'Обработка от борщевика',      cat:'Обработки',           unit:'сотка', min:2,  price:800  },
+  { name:'Стрижка (живая изгородь)',    cat:'Деревья и кустарники',unit:'м.п.',  min:5,  price:300  },
+  { name:'Стрижка кустарников (фигур.)', cat:'Деревья и кустарники', unit:'ед', min:1,  price:800  },
+  { name:'Обрезка деревьев',           cat:'Деревья и кустарники', unit:'ед',    min:1,  price:1500 },
+  { name:'Кронирование деревьев',      cat:'Деревья и кустарники', unit:'ед',    min:1,  price:3000 },
+  { name:'Спил деревьев (до 5м)',      cat:'Деревья и кустарники', unit:'ед',    min:1,  price:3000 },
+  { name:'Спил деревьев (5-10м)',      cat:'Деревья и кустарники', unit:'ед',    min:1,  price:6000 },
+  { name:'Корчевание пней',            cat:'Деревья и кустарники', unit:'ед',    min:1,  price:2000 },
+  { name:'Посадка деревьев',           cat:'Посадка растений',     unit:'ед',    min:1,  price:1500 },
+  { name:'Посадка кустарников',        cat:'Посадка растений',     unit:'ед',    min:1,  price:500  },
+  { name:'Посадка многолетников',      cat:'Посадка растений',     unit:'ед',    min:3,  price:200  },
+  { name:'Минеральное удобрение',      cat:'Удобрение газона',     unit:'сотка', min:3,  price:300  },
+  { name:'Органическое удобрение',     cat:'Удобрение газона',     unit:'сотка', min:3,  price:400  },
+  { name:'Известкование почвы',        cat:'Удобрение газона',     unit:'сотка', min:3,  price:350  },
+];
+
+// ════════════════════════════════════════
+//  НАВИГАЦИЯ
+// ════════════════════════════════════════
+
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ════════════════════════════════════════
+//  ДАШБОРД
+// ════════════════════════════════════════
+
+function buildDash() {
+  const successDeals = deals.filter(d => d.stage_id === 6);
+  const revenue = successDeals.reduce((s, d) => s + d.sum, 0);
+  const totalExp = expenses.reduce((s, e) => s + e.amt, 0);
+  const profit = revenue - totalExp;
+  const margin = revenue ? Math.round(profit / revenue * 100) : 0;
+  const inRepair = equipment.filter(e => e.status === 'repair').length;
+
+  const fmt = v => v >= 1000000
+    ? (v/1000000).toFixed(1) + ' млн'
+    : v >= 1000 ? Math.round(v/1000) + ' тыс' : v;
+
+  document.getElementById('kpi-revenue').textContent   = fmt(revenue) + ' ₽';
+  document.getElementById('kpi-deals-count').textContent = successDeals.length + ' успешных сделок';
+  document.getElementById('kpi-expenses').textContent  = fmt(totalExp) + ' ₽';
+  document.getElementById('kpi-exp-count').textContent = expenses.length + ' записей';
+
+  const profitEl = document.getElementById('kpi-profit');
+  profitEl.textContent = fmt(profit) + ' ₽';
+  profitEl.style.color = profit >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('kpi-margin').textContent = 'маржа ' + margin + '%';
+
+  document.getElementById('kpi-equip').textContent  = equipment.length;
+  document.getElementById('kpi-repair').textContent = inRepair + ' в ремонте';
+  document.getElementById('hdr-revenue').textContent = fmt(revenue) + ' ₽';
+
+  // График по месяцам
+  const MONTHS = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+  const byMonth = Array(12).fill(0);
+  successDeals.forEach(d => {
+    const m = new Date(d.date).getMonth();
+    byMonth[m] += d.sum;
+  });
+  const maxVal = Math.max(...byMonth, 1);
+  const chart = document.getElementById('bar-chart');
+  chart.innerHTML = byMonth.map((v, i) => `
+    <div class="bar-wrap">
+      <div class="bar" style="height:${Math.max(v/maxVal*100,2)}%" title="${MONTHS[i]}: ${v.toLocaleString('ru')} ₽"></div>
+      <div class="bar-lbl">${MONTHS[i]}</div>
+    </div>
+  `).join('');
+
+  // Расходы по категориям
+  const byCat = {};
+  expenses.forEach(e => { byCat[e.cat] = (byCat[e.cat]||0) + e.amt; });
+  const maxCat = Math.max(...Object.values(byCat), 1);
+  const catList = document.getElementById('exp-cat-list');
+  catList.innerHTML = Object.entries(byCat)
+    .sort((a,b) => b[1]-a[1])
+    .map(([cat, amt]) => `
+      <div class="expense-row">
+        <div class="name">${cat}</div>
+        <div class="bar-bg"><div class="bar-fill" style="width:${amt/maxCat*100}%"></div></div>
+        <div class="amt">${(amt/1000).toFixed(1)} тыс</div>
+      </div>
+    `).join('');
+}
+
+// ════════════════════════════════════════
+//  КАНБАН
+// ════════════════════════════════════════
+
+function buildKanban(filter='') {
+  const board = document.getElementById('kanban-board');
+  board.innerHTML = STAGES.map(stage => {
+    const stageDeal = deals.filter(d =>
+      d.stage_id === stage.id &&
+      (!filter || d.client.toLowerCase().includes(filter.toLowerCase()))
+    );
+    return `
+      <div class="kanban-col">
+        <div class="col-head">
+          <div class="col-dot" style="background:${stage.color}"></div>
+          <h4>${stage.name}</h4>
+          <div class="col-count">${stageDeal.length}</div>
+        </div>
+        <div class="col-cards">
+          ${stageDeal.map(d => `
+            <div class="deal-card" onclick="openDealDetails(${d.id})">
+              <div class="deal-client">${d.client}</div>
+              <div class="deal-title">${d.title}</div>
+              <div class="deal-footer">
+                <div class="deal-sum">${d.sum.toLocaleString('ru')} ₽</div>
+                <div class="deal-date">${formatDate(d.date)}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function filterKanban(val) { buildKanban(val); }
+
+// ════════════════════════════════════════
+//  РАСХОДЫ
+// ════════════════════════════════════════
+
+let expFilter = { search:'', cat:'', year:'2025' };
+
+function renderExpenses() {
+  let filtered = expenses.filter(e => {
+    const matchSearch = !expFilter.search || e.name.toLowerCase().includes(expFilter.search.toLowerCase());
+    const matchCat = !expFilter.cat || e.cat === expFilter.cat;
+    const matchYear = !expFilter.year || e.date.startsWith(expFilter.year);
+    return matchSearch && matchCat && matchYear;
+  });
+
+  const tbody = document.getElementById('exp-tbody');
+  tbody.innerHTML = filtered.map(e => `
+    <tr>
+      <td>${formatDate(e.date)}</td>
+      <td style="color:var(--text)">${e.name}</td>
+      <td><span class="badge" style="background:#2a1f00;color:var(--yellow)">${e.cat}</span></td>
+      <td>${e.equip || '—'}</td>
+      <td class="money">${e.amt.toLocaleString('ru')} ₽</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:32px">Нет данных</td></tr>';
+
+  const total = filtered.reduce((s,e) => s+e.amt, 0);
+  document.getElementById('exp-total').textContent = total.toLocaleString('ru') + ' ₽';
+}
+
+function filterExpenses(val) { expFilter.search = val; renderExpenses(); }
+function filterExpensesCat(val) { expFilter.cat = val; renderExpenses(); }
+function filterExpensesYear(val) { expFilter.year = val; renderExpenses(); }
+
+// ════════════════════════════════════════
+//  ТЕХНИКА
+// ════════════════════════════════════════
+
+function buildEquipment() {
+  const statusMap = {
+    active: { label:'Активна',   color:'#10B981', dot:'#10B981' },
+    repair: { label:'В ремонте', color:'#F59E0B', dot:'#F59E0B' },
+    retired:{ label:'Списана',   color:'#EF4444', dot:'#EF4444' },
+  };
+  document.getElementById('equip-grid').innerHTML = equipment.map(e => {
+    const st = statusMap[e.status];
+    return `
+      <div class="equip-card">
+        <div class="equip-icon">${e.icon}</div>
+        <div class="equip-name">${e.name}</div>
+        <div class="equip-model">${e.model}</div>
+        <div class="equip-footer">
+          <div class="equip-cost">${e.cost.toLocaleString('ru')} ₽</div>
+          <span class="badge" style="background:${st.dot}22;color:${st.dot}">
+            <span class="status-dot" style="background:${st.dot};animation:${e.status==='repair'?'pulse 1s infinite':'none'}"></span>
+            ${st.label}
+          </span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ════════════════════════════════════════
+//  ПРАЙС-ЛИСТ
+// ════════════════════════════════════════
+
+let svcFilter = { search:'', cat:'' };
+
+function renderServices() {
+  const filtered = SERVICES.filter(s => {
+    const matchS = !svcFilter.search || s.name.toLowerCase().includes(svcFilter.search.toLowerCase());
+    const matchC = !svcFilter.cat || s.cat === svcFilter.cat;
+    return matchS && matchC;
+  });
+
+  document.getElementById('svc-tbody').innerHTML = filtered.map(s => `
+    <tr>
+      <td style="color:var(--text)">${s.name}</td>
+      <td><span class="badge" style="background:#0d2e14;color:#7ec832">${s.cat}</span></td>
+      <td>${s.unit}</td>
+      <td>${s.min} ${s.unit}</td>
+      <td class="money">${s.price.toLocaleString('ru')} ₽</td>
+    </tr>
+  `).join('');
+}
+
+function buildServiceFilter() {
+  const cats = [...new Set(SERVICES.map(s => s.cat))];
+  const sel = document.querySelector('#page-services .filter-sel');
+  if (sel) {
+    cats.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function filterServices(val) { svcFilter.search = val; renderServices(); }
+function filterServicesCat(val) { svcFilter.cat = val; renderServices(); }
+
+// ════════════════════════════════════════
+//  МОДАЛЬНЫЕ ОКНА
+// ════════════════════════════════════════
+
+function openDealModal() { document.getElementById('modal-deal').classList.add('open'); }
+function openExpenseModal() {
+  document.getElementById('fe-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('modal-expense').classList.add('open');
+}
+function openEquipModal() { document.getElementById('modal-equip').classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+// Открытие деталей сделки
+function openDealDetails(dealId) {
+  const deal = deals.find(d => d.id === dealId);
+  if (!deal) {
+    showToast('❌ Сделка не найдена');
+    return;
+  }
+  
+  // Заполняем форму данными
+  document.getElementById('f-client').value = deal.client || '';
+  document.getElementById('f-title').value = deal.title || '';
+  document.getElementById('f-address').value = deal.address || '';
+  document.getElementById('f-services').value = deal.services || '';
+  document.getElementById('f-sum').value = deal.sum || '';
+  document.getElementById('f-notes').value = deal.notes || '';
+  
+  // Меняем заголовок модального окна
+  const modalTitle = document.querySelector('#modal-deal h2');
+  if (modalTitle) modalTitle.textContent = '✏️ РЕДАКТИРОВАНИЕ СДЕЛКИ';
+  
+  // Добавляем кнопку сохранения с обновленной логикой
+  const saveBtn = document.querySelector('#modal-deal .btn-save');
+  saveBtn.setAttribute('onclick', `updateDeal(${dealId})`);
+  
+  // Открываем модальное окно
+  document.getElementById('modal-deal').classList.add('open');
+}
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if(e.target === m) m.classList.remove('open'); });
+});
+
+async function saveDeal() {
+  const client = document.getElementById('f-client').value.trim();
+  const title  = document.getElementById('f-title').value.trim();
+  if (!client || !title) { alert('Заполните клиента и название'); return; }
+// Обновление существующей сделки
+async function updateDeal(dealId) {
+  const client = document.getElementById('f-client').value.trim();
+  const title  = document.getElementById('f-title').value.trim();
+  if (!client || !title) { 
+    alert('Заполните клиента и название'); 
+    return; 
+  }
+
+  const res = await apiFetch(`/deals/${dealId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ 
+      title, 
+      client, 
+      notes: document.getElementById('f-notes').value, 
+      address: document.getElementById('f-address').value,
+      services: getSelectedServices(),
+      total: parseFloat(document.getElementById('f-sum').value) || 0
+    })
+  });
+  
+  if (!res) return;
+
+  closeModal('modal-deal');
+  
+  // Восстанавливаем исходное состояние модального окна для новых сделок
+  const modalTitle = document.querySelector('#modal-deal h2');
+  if (modalTitle) modalTitle.textContent = 'НОВАЯ СДЕЛКА';
+  
+  const saveBtn = document.querySelector('#modal-deal .btn-save');
+  saveBtn.setAttribute('onclick', 'saveDeal()');
+  
+  // Очищаем форму
+  ['f-client','f-title','f-address','f-services','f-sum','f-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  
+  await loadAll();
+  showToast('✅ Сделка обновлена!');
+}
+  const res = await apiFetch('/deals', {
+    method: 'POST',
+    body: JSON.stringify({ 
+      title, 
+      client, 
+      notes: document.getElementById('f-notes').value, 
+      address: document.getElementById('f-address').value,
+      total: parseFloat(document.getElementById('f-sum').value) || 0
+    })
+  });
+  if (!res) return;
+
+  closeModal('modal-deal');
+  ['f-client','f-title','f-address','f-services','f-sum','f-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  await loadAll();
+  showToast('✅ Сделка создана!');
+}
+
+async function saveExpense() {
+  const name   = document.getElementById('fe-name').value.trim();
+  const date   = document.getElementById('fe-date').value;
+  const cat    = document.getElementById('fe-cat').value;
+  const amount = parseFloat(document.getElementById('fe-amount').value) || 0;
+  if (!name || !date || !amount) { alert('Заполните все поля'); return; }
+
+  const res = await apiFetch('/expenses', {
+    method: 'POST',
+    body: JSON.stringify({ date, name, category: cat, amount })
+  });
+  if (!res) return;
+
+  closeModal('modal-expense');
+  await loadAll();
+  showToast('✅ Расход добавлен!');
+}
+
+async function saveEquip() {
+  const name   = document.getElementById('feq-name').value.trim();
+  const model  = document.getElementById('feq-model').value.trim();
+  const cost   = parseFloat(document.getElementById('feq-cost').value) || 0;
+  const status = document.getElementById('feq-status').value;
+  if (!name) { alert('Введите название'); return; }
+
+  const res = await apiFetch('/equipment', {
+    method: 'POST',
+    body: JSON.stringify({ name, model, purchase_cost: cost, status })
+  });
+  if (!res) return;
+
+  closeModal('modal-equip');
+  await loadAll();
+  showToast('✅ Техника добавлена!');
+}
+
+// ════════════════════════════════════════
+//  УТИЛИТЫ
+// ════════════════════════════════════════
+
+function formatDate(str) {
+  if (!str) return '—';
+  const [y,m,d] = str.split('-');
+  return `${d}.${m}.${y}`;
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ════════════════════════════════════════
+//  ЗАГРУЗКА ДАННЫХ ИЗ API
+// ════════════════════════════════════════
+
+function equip_icon(name) {
+  const n = name.toLowerCase();
+  if (n.includes('косилк')) return '🚜';
+  if (n.includes('триммер')) return '🌀';
+  if (n.includes('бензопил') || n.includes('пила')) return '⚙️';
+  if (n.includes('скариф') || n.includes('вертик')) return '🌱';
+  if (n.includes('воздух') || n.includes('дувк')) return '💨';
+  if (n.includes('кусторез')) return '✂️';
+  return '🔧';
+}
+
+async function loadAll() {
+  showToast('⏳ Загружаем данные...');
+
+  // Этапы
+  const stagesData = await apiFetch('/stages');
+  if (stagesData) STAGES = stagesData.map(s => ({ ...s, color: s.color || '#6B7280' }));
+
+  // Сделки
+  const dealsData = await apiFetch('/deals?year=2025');
+  if (dealsData && dealsData.deals) {
+    deals = dealsData.deals.map(d => ({
+  id: d.id,
+  client: d.client,
+  title: d.title,
+  address: d.address || '',
+  services: d.services || '',
+  notes: d.notes || '',
+  stage_id: STAGES.find(s => s.name === d.stage)?.id || 1,
+  sum: d.total || 0,
+  date: d.created_at?.split('T')[0] || d.created_at?.split(' ')[0] || new Date().toISOString().split('T')[0]
+}));
+  }
+
+  // Расходы
+  const expData = await apiFetch('/expenses?year=2025');
+  if (expData && expData.expenses) {
+    expenses = expData.expenses.map(e => ({
+      id: e.id, date: e.date, name: e.name,
+      cat: e.category || 'Прочее',
+      equip: e.equipment || '',
+      amt: e.amount
+    }));
+  }
+
+  // Техника
+  const equipData = await apiFetch('/equipment');
+  if (equipData) {
+    equipment = equipData.map(e => ({
+      id: e.id, name: e.name, model: e.model,
+      cost: e.purchase_cost, status: e.status,
+      icon: equip_icon(e.name)
+    }));
+  }
+
+  // Перерисовываем всё
+  buildDash();
+  buildKanban();
+
+  // Обновляем фильтры расходов
+  const catSel = document.getElementById('cat-filter');
+  if (catSel) {
+    catSel.innerHTML = '<option value="">Все категории</option>';
+    const cats = [...new Set(expenses.map(e => e.cat))].sort();
+    cats.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c; opt.textContent = c;
+      catSel.appendChild(opt);
+    });
+  }
+  
+  renderExpenses();
+  buildEquipment();
+  renderServices();
+
+  showToast('✅ Данные загружены!');
+}
+
+// ════════════════════════════════════════
+//  АВТОРИЗАЦИЯ (через сервер)
+// ════════════════════════════════════════
+
+async function doLogin() {
+  const username = document.getElementById('l-user').value.trim().toLowerCase();
+  const password = document.getElementById('l-pass').value;
+  const err      = document.getElementById('l-err');
+  const btn      = document.querySelector('.login-btn');
+
+  if (!username || !password) {
+    err.textContent = '⚠️ Введите логин и пароль';
+    return;
+  }
+
+  btn.textContent = 'Проверяем...';
+  btn.disabled = true;
+  err.textContent = '';
+
+  try {
+    console.log('Пытаемся подключиться к:', API + '/auth/login');
+    
+    const res = await fetch(API + '/auth/login', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ username, password })
+    });
+
+    console.log('Статус ответа:', res.status);
+
+    if (res.ok) {
+      const data = await res.json();
+      console.log('Ответ сервера:', data);
+      
+      if (!data.access_token) {
+        throw new Error('Сервер не вернул токен доступа');
+      }
+      
+      sessionStorage.setItem('crm_token', data.access_token);
+      sessionStorage.setItem('crm_user',  JSON.stringify({
+        username:  data.username || username,
+        full_name: data.full_name || username,
+        role:      data.role || 'user',
+        expires:   Date.now() + (data.expires_in || 3600) * 1000
+      }));
+      
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      
+      await loadAll();
+      
+    } else {
+      let errorMsg = 'Ошибка сервера';
+      try {
+        const errorData = await res.json();
+        errorMsg = errorData.detail || JSON.stringify(errorData);
+      } catch {
+        errorMsg = await res.text() || `HTTP ошибка ${res.status}`;
+      }
+      
+      console.error('Ошибка входа:', errorMsg);
+      err.textContent = '❌ ' + errorMsg;
+      document.getElementById('l-pass').value = '';
+    }
+  } catch(e) {
+    console.error('Исключение при входе:', e);
+    err.textContent = '❌ ' + (e.message || 'Сервер недоступен. Проверьте подключение к серверу.');
+  } finally {
+    btn.textContent = 'Войти';
+    btn.disabled = false;
+  }
+}
+
+function checkAuth() {
+  const raw   = sessionStorage.getItem('crm_user');
+  const token = sessionStorage.getItem('crm_token');
+  
+  if (!raw || !token) return false;
+  
+  try {
+    const user = JSON.parse(raw);
+    if (Date.now() < user.expires) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      loadAll();
+      return true;
+    } else {
+      sessionStorage.clear();
+      return false;
+    }
+  } catch(e) {
+    console.error('Ошибка парсинга user data:', e);
+    sessionStorage.clear();
+    return false;
+  }
+}
+// ========== НОВЫЙ КОД ДЛЯ УСЛУГ ==========
+
+// Загружает услуги в выпадающий список
+function loadServicesDropdown() {
+  const select = document.getElementById('f-services');
+  if (!select) return;
+  
+  // Группируем услуги по категориям
+  const grouped = {};
+  SERVICES.forEach(s => {
+    if (!grouped[s.cat]) grouped[s.cat] = [];
+    grouped[s.cat].push(s);
+  });
+  
+  select.innerHTML = '';
+  
+  // Добавляем опции по категориям
+  Object.keys(grouped).sort().forEach(cat => {
+    // Заголовок категории (невыбираемый)
+    const optgroup = document.createElement('optgroup');
+    optgroup.label = cat;
+    
+    // Услуги в категории
+    grouped[cat].sort((a, b) => a.name.localeCompare(b.name)).forEach(s => {
+      const option = document.createElement('option');
+      option.value = `${s.name}|${s.price}`; // Храним название и цену
+      option.textContent = `${s.name} — ${s.price} ₽/${s.unit}`;
+      option.dataset.unit = s.unit;
+      option.dataset.price = s.price;
+      option.dataset.name = s.name;
+      optgroup.appendChild(option);
+    });
+    
+    select.appendChild(optgroup);
+  });
+  
+  // Добавляем обработчик изменения выбора
+  select.removeEventListener('change', updateQuantityInputs);
+  select.addEventListener('change', updateQuantityInputs);
+}
+
+// Обновляет поля ввода количества для выбранных услуг
+function updateQuantityInputs() {
+  const select = document.getElementById('f-services');
+  const container = document.getElementById('quantity-inputs');
+  const quantitiesDiv = document.getElementById('service-quantities');
+  
+  if (!select || !container || !quantitiesDiv) return;
+  
+  // Получаем выбранные опции
+  const selected = Array.from(select.selectedOptions);
+  
+  if (selected.length === 0) {
+    quantitiesDiv.style.display = 'none';
+    return;
+  }
+  
+  quantitiesDiv.style.display = 'block';
+  container.innerHTML = '';
+  
+  selected.forEach(option => {
+    const [name, price] = option.value.split('|');
+    const unit = option.dataset.unit || 'шт';
+    
+    const div = document.createElement('div');
+    div.style.marginBottom = '10px';
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.gap = '10px';
+    
+    div.innerHTML = `
+      <span style="flex: 2; font-size: 12px; color: var(--text);">${name}</span>
+      <input type="number" 
+             class="service-qty" 
+             data-service="${name}"
+             data-price="${price}"
+             min="0" 
+             step="0.1" 
+             value="0" 
+             style="flex: 1; background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; color: var(--text); padding: 5px;">
+      <span style="flex: 0.5; font-size: 12px; color: var(--text2);">${unit}</span>
+    `;
+    
+    container.appendChild(div);
+  });
+  
+  // Добавляем обработчики для автоматического расчета суммы
+  document.querySelectorAll('.service-qty').forEach(input => {
+    input.addEventListener('input', calculateTotalFromServices);
+  });
+}
+
+// Рассчитывает общую сумму на основе выбранных услуг и их количества
+function calculateTotalFromServices() {
+  let total = 0;
+  const quantities = document.querySelectorAll('.service-qty');
+  
+  quantities.forEach(input => {
+    const qty = parseFloat(input.value) || 0;
+    const price = parseFloat(input.dataset.price) || 0;
+    total += qty * price;
+  });
+  
+  const sumInput = document.getElementById('f-sum');
+  if (sumInput) {
+    sumInput.value = Math.round(total);
+  }
+}
+
+// Собирает выбранные услуги в строку
+function getSelectedServices() {
+  const selected = [];
+  const quantities = document.querySelectorAll('.service-qty');
+  
+  quantities.forEach(input => {
+    const qty = parseFloat(input.value) || 0;
+    if (qty > 0) {
+      const serviceName = input.dataset.service;
+      selected.push(`${serviceName}:${qty}`);
+    }
+  });
+  
+  return selected.join(',');
+}
+
+// Инициализация при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+  // Проверяем авторизацию
+  checkAuth();
+  
+  // Строим фильтры для прайса
+  buildServiceFilter();
+  
+  // Рендерим прайс (он не требует API)
+  renderServices();
+  
+  // Загружаем услуги в выпадающий список
+  loadServicesDropdown();
+});
+</script>
+</div><!-- /app -->
+</body>
+</html>
