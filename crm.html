@@ -883,6 +883,7 @@ tr:hover td { background: var(--mist); color: var(--ink); }
     <button onclick="showPage('kanban',this)"><span>Сделки</span></button>
     <button onclick="showPage('expenses',this)"><span>Расходы</span></button>
     <button onclick="showPage('equipment',this)"><span>Техника</span></button>
+    <button onclick="showPage('stock',this)"><span>Склад</span></button>
     <button onclick="showPage('services',this)"><span>Прайс</span></button>
     <button onclick="showPage('contacts',this)"><span>Контакты</span></button>
   </nav>
@@ -959,6 +960,9 @@ tr:hover td { background: var(--mist); color: var(--ink); }
   </div>
   <div class="table-toolbar" style="margin-bottom:16px;">
     <input class="search-input" placeholder="Поиск клиента..." oninput="filterKanban(this.value)">
+    <select class="filter-sel" id="kanban-year-filter" onchange="filterKanbanYear(this.value)">
+      <option value="">Все годы</option>
+    </select>
     <button class="btn ml" onclick="openDealModal()">+ Новая сделка</button>
   </div>
   <div class="kanban" id="kanban-board"></div>
@@ -1013,7 +1017,7 @@ tr:hover td { background: var(--mist); color: var(--ink); }
     <div class="card">
       <table>
         <thead>
-          <tr><th>Техника</th><th>Статус</th><th>Покупка</th><th>Стоимость</th><th>Посл. ТО</th><th>След. ТО</th><th></th></tr>
+          <tr><th>Техника</th><th>Статус</th><th>Покупка</th><th>Стоимость</th><th>Моточасы</th><th>Посл. ТО</th><th>След. ТО</th><th></th></tr>
         </thead>
         <tbody id="equip-tbody"></tbody>
       </table>
@@ -1022,11 +1026,29 @@ tr:hover td { background: var(--mist); color: var(--ink); }
       <div class="card-head"><h3>История ТО</h3></div>
       <table>
         <thead>
-          <tr><th>Техника</th><th>Работы</th><th>Стоимость</th><th>Дата</th></tr>
+          <tr><th>Техника</th><th>Работы</th><th>Стоимость</th><th>Дата</th><th></th></tr>
         </thead>
         <tbody id="maint-tbody"></tbody>
       </table>
     </div>
+  </div>
+</div>
+
+
+<!-- ════ СКЛАД РАСХОДНИКОВ ════ -->
+<div class="page" id="page-stock">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;">
+    <div>
+      <div class="section-label"><div class="label-line"></div><span class="label-text">Склад</span></div>
+      <div class="page-title">Учёт <em>расходников</em></div>
+    </div>
+    <button class="btn" onclick="openConsumableModal()">+ Расходник</button>
+  </div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Наименование</th><th>Остаток</th><th>Себест./ед.</th><th>Сумма на складе</th><th>Примечание</th></tr></thead>
+      <tbody id="consumables-tbody"></tbody>
+    </table>
   </div>
 </div>
 
@@ -1105,6 +1127,7 @@ tr:hover td { background: var(--mist); color: var(--ink); }
     <div class="form-group"><label>Название</label><input id="feq-name" placeholder="Газонокосилка"></div>
     <div class="form-group"><label>Модель</label><input id="feq-model" placeholder="Husqvarna LC 353V"></div>
     <div class="form-group"><label>Стоимость покупки (₽)</label><input id="feq-cost" type="number" placeholder="45000"></div>
+    <div class="form-group"><label>Моточасы</label><input id="feq-hours" type="number" min="0" step="0.1" placeholder="0"></div>
     <div class="form-group"><label>Статус</label>
       <select id="feq-status">
         <option value="active">✅ Активна</option>
@@ -1120,18 +1143,46 @@ tr:hover td { background: var(--mist); color: var(--ink); }
   </div>
 </div>
 
+
+<!-- Расходник на склад -->
+<div class="modal-overlay" id="modal-consumable">
+  <div class="modal">
+    <h2>Новый <em>расходник</em></h2>
+    <div class="form-group"><label>Наименование</label><input id="fc-name" placeholder="Масло 4Т"></div>
+    <div class="form-group"><label>Количество</label><input id="fc-qty" type="number" min="0.001" step="0.001" placeholder="5"></div>
+    <div class="form-group"><label>Единица</label>
+      <select id="fc-unit"><option>мл</option><option>л</option><option>г</option><option>кг</option><option>шт</option></select>
+    </div>
+    <div class="form-group"><label>Общая стоимость (₽)</label><input id="fc-cost" type="number" min="0" step="0.01" placeholder="1200"></div>
+    <div class="form-group"><label>Примечание</label><input id="fc-notes" placeholder="Канистра 5л"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-consumable')">Отмена</button>
+      <button class="btn-save" onclick="saveConsumable()">Добавить</button>
+    </div>
+  </div>
+</div>
+
 <!-- ТО -->
 <div class="modal-overlay" id="modal-maintenance">
   <div class="modal">
-    <h2>Новое <em>ТО</em></h2>
+    <h2 id="maintenance-modal-title">Новое <em>ТО</em></h2>
     <div class="form-group"><label>Техника</label><select id="fm-equip"></select></div>
     <div class="form-group"><label>Дата</label><input id="fm-date" type="date"></div>
     <div class="form-group"><label>Проведённые работы</label><input id="fm-desc" placeholder="Замена масла, свечи..."></div>
-    <div class="form-group"><label>Стоимость (₽)</label><input id="fm-cost" type="number" placeholder="1500"></div>
+    <div class="form-group"><label>Расходники (списание со склада)</label>
+      <div class="service-picker" id="maintenance-consumable-picker">
+        <div class="service-picker-input-wrap">
+          <input id="fm-cons-search" placeholder="Найти расходник на складе...">
+          <button type="button" class="service-add-btn" onclick="focusMaintenanceConsumableSearch()">+ добавить</button>
+        </div>
+        <div class="service-suggest" id="fm-cons-suggest"></div>
+        <div class="selected-services" id="fm-selected-consumables"></div>
+      </div>
+    </div>
     <div class="form-group"><label>Кто выполнял</label><input id="fm-by" placeholder="Михаил"></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('modal-maintenance')">Отмена</button>
-      <button class="btn-save" onclick="saveMaintenance()">Добавить ТО</button>
+      <button class="btn-save" id="maintenance-save-btn" onclick="saveMaintenance()">Добавить ТО</button>
     </div>
   </div>
 </div>
@@ -1167,6 +1218,7 @@ tr:hover td { background: var(--mist); color: var(--ink); }
       </div>
     </div>
     <div class="form-group"><label>Сумма (₽)</label><input id="f-sum" type="number" placeholder="5000"></div>
+    <div class="form-group"><label>НДС (включён в стоимость)</label><select id="f-vat"><option value="no_vat">Без НДС</option><option value="vat_4">НДС 4%</option><option value="vat_6">НДС 6%</option></select></div>
     <div class="form-group"><label>Примечание</label><input id="f-notes" placeholder="..."></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('modal-deal')">Отмена</button>
@@ -1208,9 +1260,10 @@ async function apiFetch(path, opts={}) {
   }
 }
 
-let STAGES = [], deals = [], expenses = [], equipment = [], maintenances = [], contacts = [];
+let STAGES = [], deals = [], expenses = [], equipment = [], maintenances = [], contacts = [], consumables = [];
 let draggedDealId = null, dashYear = String(new Date().getFullYear()), contactsFilter = '';
-let currentEditingDealId = null, currentEditingEquipmentId = null;
+let currentEditingDealId = null, currentEditingEquipmentId = null, currentEditingMaintenanceId = null;
+let kanbanFilter = { search:'', year:String(new Date().getFullYear()) };
 
 function isAdmin() {
   try { return (JSON.parse(sessionStorage.getItem('crm_user') || '{}').role || '') === 'admin'; } catch { return false; }
@@ -1287,7 +1340,8 @@ function changeDashYear(year) { dashYear = year; buildDash(); }
 function buildDash() {
   const dealsYear = deals.filter(d => (d.date||'').startsWith(dashYear));
   const expYear   = expenses.filter(e => (e.date||'').startsWith(dashYear));
-  const success   = dealsYear.filter(d => d.stage_id === 6);
+  const successStage = STAGES.find(s => s.type === 'success');
+  const success   = successStage ? dealsYear.filter(d => d.stage_id === successStage.id) : [];
   const revenue   = success.reduce((s,d) => s+d.sum, 0);
   const totalExp  = expYear.reduce((s,e) => s+e.amt, 0);
   const profit    = revenue - totalExp;
@@ -1340,17 +1394,43 @@ function buildDash() {
 }
 
 /* ── КАНБАН ── */
-function buildKanban(filter='') {
+function buildKanbanYearFilter() {
+  const select = document.getElementById('kanban-year-filter');
+  if (!select) return;
+
+  const years = [...new Set(deals.map(d => (d.date||'').slice(0,4)).filter(Boolean))]
+    .sort((a,b)=>Number(b)-Number(a));
+  const currentYear = String(new Date().getFullYear());
+
+  select.innerHTML = '<option value="">Все годы</option>' + years.map(y => `<option value="${y}">${y}</option>`).join('');
+  if (!kanbanFilter.year) kanbanFilter.year = currentYear;
+  if (kanbanFilter.year && !years.includes(kanbanFilter.year) && kanbanFilter.year !== currentYear) {
+    kanbanFilter.year = currentYear;
+  }
+  if (kanbanFilter.year) {
+    const hasOpt = [...select.options].some(o => o.value === kanbanFilter.year);
+    if (!hasOpt) {
+      const opt = document.createElement('option');
+      opt.value = kanbanFilter.year;
+      opt.textContent = kanbanFilter.year;
+      select.appendChild(opt);
+    }
+  }
+  select.value = kanbanFilter.year || '';
+}
+
+function buildKanban() {
   const board = document.getElementById('kanban-board');
-  // Пропускаем первую стадию (начальная/новая)
-  const visibleStages = STAGES.slice(1);
+  const visibleStages = STAGES;
+  const search = (kanbanFilter.search || '').toLowerCase();
   board.innerHTML = visibleStages.map(stage => {
     const stageDeal = deals.filter(d =>
       d.stage_id === stage.id &&
-      (!filter || d.client.toLowerCase().includes(filter.toLowerCase()))
+      (!search || (d.client||'').toLowerCase().includes(search)) &&
+      (!kanbanFilter.year || (d.date||'').startsWith(kanbanFilter.year))
     );
     const stageColor = stage.color || '#5a9448';
-    const isSuccess = stage.id === 6 || stage.name?.toLowerCase().includes('успех');
+    const isSuccess = stage.type === 'success' || stage.name?.toLowerCase().includes('успех');
     const colBg = isSuccess ? '#f0faf0' : '';
     const colStyle = colBg ? `style="background:${colBg}"` : '';
     return `
@@ -1413,7 +1493,8 @@ async function onDealDrop(event, stageId) {
   if (!res) { deal.stage_id = old; buildKanban(); buildDash(); showToast('❌ Не удалось переместить'); return; }
   showToast(`✅ ${stage.name}`);
 }
-function filterKanban(val) { buildKanban(val); }
+function filterKanban(val) { kanbanFilter.search = val||''; buildKanban(); }
+function filterKanbanYear(year) { kanbanFilter.year = year||''; buildKanban(); }
 
 /* ── РАСХОДЫ ── */
 let expFilter = { search:'', cat:'', year:'' };
@@ -1468,6 +1549,7 @@ function buildEquipment() {
       <td><span class="badge" style="background:${st.bg};color:${st.color}">${st.label}</span></td>
       <td>${e.purchase_date ? formatDate(e.purchase_date) : '—'}</td>
       <td class="money" style="font-size:14px">${(e.cost||0).toLocaleString('ru')} ₽</td>
+      <td>${Number(e.engine_hours||0).toFixed(1)}</td>
       <td>${e.last_maintenance ? formatDate(e.last_maintenance) : '—'}</td>
       <td>${e.next_maintenance ? formatDate(e.next_maintenance) : '—'}</td>
       <td>${isAdmin() ? `<button class="tiny-btn" onclick="openEquipModal(${e.id})">Изменить</button>` : ''}</td>
@@ -1477,11 +1559,12 @@ function buildEquipment() {
   document.getElementById('maint-tbody').innerHTML = maintenances.slice(0,15).map(m => `
     <tr>
       <td>${m.equipment||'—'}</td>
-      <td style="font-size:11px;max-width:140px;white-space:normal">${m.description||'—'}</td>
-      <td class="money" style="font-size:13px">${(m.cost||0).toLocaleString('ru')} ₽</td>
+      <td style=\"font-size:11px;max-width:140px;white-space:normal\">${m.description||'—'}</td>
+      <td class=\"money\" style=\"font-size:13px\">${(m.cost||0).toLocaleString('ru')} ₽</td>
       <td>${formatDate(m.date)}</td>
+      <td>${isAdmin() ? `<button class=\"tiny-btn\" onclick=\"openMaintenanceEdit(${m.id})\">Изменить</button>` : ''}</td>
     </tr>
-  `).join('') || '<tr><td colspan="4" style="text-align:center;color:#ccc;padding:24px;font-size:12px">ТО пока нет</td></tr>';
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:#ccc;padding:24px;font-size:12px">ТО пока нет</td></tr>';
 }
 
 /* ── ПРАЙС ── */
@@ -1585,6 +1668,7 @@ function resetDealModalState() {
   document.getElementById('deal-save-btn').textContent = 'Создать';
   document.getElementById('deal-save-btn').setAttribute('onclick','saveDeal()');
   ['f-client','f-contact-phone','f-contact-email','f-title','f-address','f-sum','f-notes','f-service-search'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const vatSel=document.getElementById('f-vat'); if(vatSel) vatSel.value='no_vat';
   fillSelectedServicesFromString('');
   document.getElementById('service-suggest')?.classList.remove('open');
   document.getElementById('f-contact-select').value = '';
@@ -1606,12 +1690,13 @@ function openEquipModal(equipmentId=null) {
       document.getElementById('feq-model').value = e.model||'';
       document.getElementById('feq-cost').value = e.cost||0;
       document.getElementById('feq-status').value = e.status||'active';
+      document.getElementById('feq-hours').value = e.engine_hours||0;
       document.getElementById('feq-notes').value = e.notes||'';
     }
     title.innerHTML = 'Редактирование <em>техники</em>';
     btn.textContent = 'Сохранить';
   } else {
-    ['feq-name','feq-model','feq-cost','feq-notes'].forEach(id=>document.getElementById(id).value='');
+    ['feq-name','feq-model','feq-cost','feq-hours','feq-notes'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('feq-status').value = 'active';
     title.innerHTML = 'Новая <em>техника</em>';
     btn.textContent = 'Добавить';
@@ -1620,9 +1705,38 @@ function openEquipModal(equipmentId=null) {
 }
 
 function openMaintenanceModal() {
+  currentEditingMaintenanceId = null;
   const sel = document.getElementById('fm-equip');
-  if (sel) sel.innerHTML = equipment.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+  if (sel) sel.innerHTML = equipment.map(e=>`<option value=\"${e.id}\">${e.name}</option>`).join('');
   document.getElementById('fm-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('fm-desc').value='';
+  document.getElementById('fm-by').value='';
+  document.getElementById('maintenance-modal-title').innerHTML = 'Новое <em>ТО</em>';
+  document.getElementById('maintenance-save-btn').textContent = 'Добавить ТО';
+  selectedMaintenanceConsumables = [];
+  renderSelectedMaintenanceConsumables();
+  const inp=document.getElementById('fm-cons-search'); if(inp) inp.value='';
+  document.getElementById('modal-maintenance').classList.add('open');
+}
+
+
+function openMaintenanceEdit(maintenanceId) {
+  const m = maintenances.find(x=>x.id===maintenanceId);
+  if (!m) return;
+  currentEditingMaintenanceId = maintenanceId;
+  const sel = document.getElementById('fm-equip');
+  if (sel) {
+    sel.innerHTML = equipment.map(e=>`<option value="${e.id}">${e.name}</option>`).join('');
+    sel.value = String(m.equipment_id||'');
+  }
+  document.getElementById('fm-date').value = m.date || new Date().toISOString().split('T')[0];
+  document.getElementById('fm-desc').value = m.description || '';
+  document.getElementById('fm-by').value = m.performed_by || '';
+  document.getElementById('maintenance-modal-title').innerHTML = 'Редактирование <em>ТО</em>';
+  document.getElementById('maintenance-save-btn').textContent = 'Сохранить';
+  selectedMaintenanceConsumables = (m.consumables||[]).map(i=>({ consumable_id:i.consumable_id, name:i.consumable||'Расходник', quantity:i.quantity||0, unit:i.unit||'мл', unit_cost:i.unit_cost||0 }));
+  renderSelectedMaintenanceConsumables();
+  const inp=document.getElementById('fm-cons-search'); if(inp) inp.value='';
   document.getElementById('modal-maintenance').classList.add('open');
 }
 
@@ -1630,6 +1744,7 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('open');
   if (id === 'modal-deal') resetDealModalState();
   if (id === 'modal-equip') currentEditingEquipmentId = null;
+  if (id === 'modal-maintenance') currentEditingMaintenanceId = null;
 }
 
 document.querySelectorAll('.modal-overlay').forEach(m => {
@@ -1652,6 +1767,7 @@ function openDealDetails(dealId) {
   document.getElementById('f-address').value = deal.address||'';
   fillSelectedServicesFromString(deal.services||'');
   document.getElementById('f-sum').value = deal.sum||'';
+  document.getElementById('f-vat').value = deal.vat_rate || 'no_vat';
   document.getElementById('f-notes').value = deal.notes||'';
   document.getElementById('deal-modal-title').innerHTML = 'Редактирование <em>сделки</em>';
   document.getElementById('deal-save-btn').textContent = 'Сохранить';
@@ -1661,13 +1777,133 @@ function openDealDetails(dealId) {
   document.getElementById('modal-deal').classList.add('open');
 }
 
+
+function renderConsumables() {
+  const tbody = document.getElementById('consumables-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = consumables.map(c => `
+    <tr>
+      <td>${c.name}</td>
+      <td>${Number(c.stock_quantity||0).toLocaleString('ru')} ${c.unit||''}</td>
+      <td class="money">${(c.price_per_unit||0).toLocaleString('ru')} ₽</td>
+      <td class="money">${(c.stock_value||0).toLocaleString('ru')} ₽</td>
+      <td>${c.notes||'—'}</td>
+    </tr>
+  `).join('') || '<tr><td colspan="5" style="text-align:center;color:#ccc;padding:24px;font-size:12px">Расходников пока нет</td></tr>';
+}
+
+function openConsumableModal() {
+  ['fc-name','fc-qty','fc-cost','fc-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fc-unit').value = 'мл';
+  document.getElementById('modal-consumable').classList.add('open');
+}
+
+async function saveConsumable() {
+  const name = document.getElementById('fc-name').value.trim();
+  const quantity = parseFloat(document.getElementById('fc-qty').value)||0;
+  const total_cost = parseFloat(document.getElementById('fc-cost').value)||0;
+  const unit = document.getElementById('fc-unit').value;
+  const notes = document.getElementById('fc-notes').value.trim();
+  if (!name || !quantity) { alert('Заполните наименование и количество'); return; }
+  const res = await apiFetch('/consumables', { method:'POST', body:JSON.stringify({ name, quantity, unit, total_cost, notes }) });
+  if (!res) return;
+  closeModal('modal-consumable');
+  await loadAll();
+  showToast('✅ Расходник добавлен');
+}
+
+let selectedMaintenanceConsumables = [];
+
+function focusMaintenanceConsumableSearch() {
+  const i=document.getElementById('fm-cons-search');
+  if(i){ i.focus(); renderMaintenanceConsumableSuggestions(i.value.trim()); }
+}
+
+function initMaintenanceConsumablePicker() {
+  const input = document.getElementById('fm-cons-search');
+  const suggest = document.getElementById('fm-cons-suggest');
+  if (!input || !suggest) return;
+  input.addEventListener('focus', ()=>renderMaintenanceConsumableSuggestions(input.value.trim()));
+  input.addEventListener('input', ()=>renderMaintenanceConsumableSuggestions(input.value.trim()));
+  input.addEventListener('keydown', e=>{ if(e.key==='Enter') e.preventDefault(); });
+  document.addEventListener('click', e=>{
+    const picker=document.getElementById('maintenance-consumable-picker');
+    if(picker && !picker.contains(e.target)) suggest.classList.remove('open');
+  });
+  renderSelectedMaintenanceConsumables();
+}
+
+function renderMaintenanceConsumableSuggestions(search='') {
+  const suggest=document.getElementById('fm-cons-suggest');
+  if(!suggest) return;
+  const q=(search||'').toLowerCase();
+  const filtered=consumables
+    .filter(c=>!selectedMaintenanceConsumables.some(i=>i.consumable_id===c.id))
+    .filter(c=>!q || c.name.toLowerCase().includes(q))
+    .slice(0,12);
+  if(!filtered.length){
+    suggest.innerHTML='<div class="service-option"><span class="service-option-name" style="color:#bbb">Ничего не найдено</span></div>';
+    suggest.classList.add('open');
+    return;
+  }
+  suggest.innerHTML=filtered.map(c=>`<div class="service-option" onclick="addConsumableToMaintenance(${c.id})"><div><div class="service-option-name">${c.name}</div><div class="service-option-meta">Остаток: ${Number(c.stock_quantity||0).toLocaleString('ru')} ${c.unit||''}</div></div><div class="service-option-meta">${(c.price_per_unit||0).toLocaleString('ru')} ₽/${c.unit||''}</div></div>`).join('');
+  suggest.classList.add('open');
+}
+
+function addConsumableToMaintenance(consumableId) {
+  const c = consumables.find(x=>x.id===Number(consumableId));
+  if(!c || selectedMaintenanceConsumables.some(i=>i.consumable_id===c.id)) return;
+  selectedMaintenanceConsumables.push({ consumable_id:c.id, name:c.name, quantity:0, unit:c.unit||'мл', unit_cost:c.price_per_unit||0 });
+  const i=document.getElementById('fm-cons-search'); if(i) i.value='';
+  renderSelectedMaintenanceConsumables();
+  renderMaintenanceConsumableSuggestions('');
+}
+
+function removeSelectedMaintenanceConsumable(consumableId) {
+  selectedMaintenanceConsumables=selectedMaintenanceConsumables.filter(i=>i.consumable_id!==consumableId);
+  renderSelectedMaintenanceConsumables();
+}
+
+function updateSelectedMaintenanceConsumableQty(consumableId, val) {
+  const row=selectedMaintenanceConsumables.find(i=>i.consumable_id===consumableId);
+  if(!row) return;
+  row.quantity=Math.max(0, parseFloat(val)||0);
+  renderSelectedMaintenanceConsumables();
+}
+
+function updateSelectedMaintenanceConsumableUnit(consumableId, unit) {
+  const row=selectedMaintenanceConsumables.find(i=>i.consumable_id===consumableId);
+  if(!row) return;
+  row.unit=unit;
+}
+
+function renderSelectedMaintenanceConsumables() {
+  const box=document.getElementById('fm-selected-consumables');
+  if(!box) return;
+  if(!selectedMaintenanceConsumables.length){
+    box.innerHTML='<div class="selected-services-empty">Расходники не добавлены</div>';
+    return;
+  }
+  box.innerHTML=selectedMaintenanceConsumables.map(item=>`<div class="selected-service-row"><div><div class="name">${item.name}</div><div class="meta">${(item.unit_cost||0).toLocaleString('ru')} ₽ / баз. ед.</div></div><input type="number" min="0" step="0.001" value="${item.quantity}" onchange="updateSelectedMaintenanceConsumableQty(${item.consumable_id},this.value)"><select onchange="updateSelectedMaintenanceConsumableUnit(${item.consumable_id},this.value)"><option ${item.unit==='мл'?'selected':''}>мл</option><option ${item.unit==='л'?'selected':''}>л</option><option ${item.unit==='г'?'selected':''}>г</option><option ${item.unit==='кг'?'selected':''}>кг</option><option ${item.unit==='шт'?'selected':''}>шт</option></select><button class="remove-service" type="button" onclick="removeSelectedMaintenanceConsumable(${item.consumable_id})">×</button></div>`).join('');
+}
+
+function collectMaintenanceConsumables() {
+  for (const row of selectedMaintenanceConsumables) {
+    if (!row.quantity || row.quantity <= 0) {
+      alert(`Укажите количество для расходника '${row.name}'`);
+      return null;
+    }
+  }
+  return selectedMaintenanceConsumables.map(i=>({ consumable_id:i.consumable_id, quantity:i.quantity, unit:i.unit }));
+}
+
 /* ── CRUD ОПЕРАЦИИ ── */
 async function saveDeal() {
   const client = document.getElementById('f-client').value.trim();
   const title  = document.getElementById('f-title').value.trim();
   saveContactSilentlyFromDealForm();
   if (!client||!title) { alert('Заполните клиента и название'); return; }
-  const res = await apiFetch('/deals', { method:'POST', body:JSON.stringify({ title, client, notes: document.getElementById('f-notes').value, address: document.getElementById('f-address').value, services: getSelectedServices(), total: parseFloat(document.getElementById('f-sum').value)||0 }) });
+  const res = await apiFetch('/deals', { method:'POST', body:JSON.stringify({ title, client, notes: document.getElementById('f-notes').value, address: document.getElementById('f-address').value, vat_rate: document.getElementById('f-vat').value, services: getSelectedServices(), total: parseFloat(document.getElementById('f-sum').value)||0 }) });
   if (!res) return;
   closeModal('modal-deal'); await loadAll(); showToast('✅ Сделка создана');
 }
@@ -1676,7 +1912,7 @@ async function updateDeal(dealId) {
   const title  = document.getElementById('f-title').value.trim();
   saveContactSilentlyFromDealForm();
   if (!client||!title) { alert('Заполните клиента и название'); return; }
-  const res = await apiFetch(`/deals/${dealId}`, { method:'PUT', body:JSON.stringify({ title, client, notes: document.getElementById('f-notes').value, address: document.getElementById('f-address').value, services: getSelectedServices(), total: parseFloat(document.getElementById('f-sum').value)||0 }) });
+  const res = await apiFetch(`/deals/${dealId}`, { method:'PUT', body:JSON.stringify({ title, client, notes: document.getElementById('f-notes').value, address: document.getElementById('f-address').value, vat_rate: document.getElementById('f-vat').value, services: getSelectedServices(), total: parseFloat(document.getElementById('f-sum').value)||0 }) });
   if (!res) return;
   closeModal('modal-deal'); await loadAll(); showToast('✅ Сделка обновлена');
 }
@@ -1693,7 +1929,7 @@ async function saveExpense() {
 async function saveEquip() {
   const name = document.getElementById('feq-name').value.trim();
   if (!name) { alert('Введите название'); return; }
-  const payload = { name, model:document.getElementById('feq-model').value.trim(), purchase_cost:parseFloat(document.getElementById('feq-cost').value)||0, status:document.getElementById('feq-status').value, notes:document.getElementById('feq-notes').value };
+  const payload = { name, model:document.getElementById('feq-model').value.trim(), purchase_cost:parseFloat(document.getElementById('feq-cost').value)||0, engine_hours:parseFloat(document.getElementById('feq-hours').value)||0, status:document.getElementById('feq-status').value, notes:document.getElementById('feq-notes').value };
   const isEdit = !!currentEditingEquipmentId;
   const res = await apiFetch(isEdit ? `/equipment/${currentEditingEquipmentId}` : '/equipment', { method:isEdit?'PUT':'POST', body:JSON.stringify(payload) });
   if (!res) return;
@@ -1703,12 +1939,16 @@ async function saveMaintenance() {
   const equipment_id = parseInt(document.getElementById('fm-equip').value,10);
   const date = document.getElementById('fm-date').value;
   const description = document.getElementById('fm-desc').value.trim();
-  const cost = parseFloat(document.getElementById('fm-cost').value)||0;
   const performed_by = document.getElementById('fm-by').value.trim();
+  const usedConsumables = collectMaintenanceConsumables();
+  if (usedConsumables === null) return;
   if (!equipment_id||!date||!description) { alert('Заполните технику, дату и работы'); return; }
-  const res = await apiFetch(`/equipment/${equipment_id}/maintenance`, { method:'POST', body:JSON.stringify({ date, description, cost, performed_by }) });
+  const isEdit = !!currentEditingMaintenanceId;
+  const url = isEdit ? `/maintenances/${currentEditingMaintenanceId}` : `/equipment/${equipment_id}/maintenance`;
+  const method = isEdit ? 'PUT' : 'POST';
+  const res = await apiFetch(url, { method, body:JSON.stringify({ date, description, performed_by, consumables: usedConsumables, equipment_id }) });
   if (!res) return;
-  closeModal('modal-maintenance'); await loadAll(); showToast('✅ ТО добавлено');
+  closeModal('modal-maintenance'); await loadAll(); showToast(isEdit ? '✅ ТО обновлено' : '✅ ТО добавлено');
 }
 async function deleteExpense(id) {
   if (!isAdmin()||!confirm('Удалить расход?')) return;
@@ -1747,18 +1987,21 @@ async function loadAll() {
     deals = dealsData.deals.map(d => ({
       id:d.id, client:d.client, title:d.title, address:d.address||'',
       services:Array.isArray(d.services)?d.services.map(s=>`${s.name}:${s.qty}`).join(','):(d.services||''),
-      notes:d.notes||'', stage_id:STAGES.find(s=>s.name===d.stage)?.id||1,
+      notes:d.notes||'', vat_rate:d.vat_rate||'no_vat', stage_id:STAGES.find(s=>s.name===d.stage)?.id||1,
       sum:d.total||0, date:d.created_at?.split('T')[0]||d.created_at?.split(' ')[0]||new Date().toISOString().split('T')[0]
     }));
   }
   const expData = await apiFetch('/expenses');
   if (expData?.expenses) expenses = expData.expenses.map(e=>({ id:e.id, date:e.date, name:e.name, cat:e.category||'Прочее', equip:e.equipment||'', amt:e.amount }));
   const equipData = await apiFetch('/equipment');
-  if (equipData) equipment = equipData.map(e=>({ id:e.id, name:e.name, model:e.model, cost:e.purchase_cost, status:e.status, purchase_date:e.purchase_date||'', last_maintenance:e.last_maintenance||'', next_maintenance:e.next_maintenance||'', notes:e.notes||'' }));
+  if (equipData) equipment = equipData.map(e=>({ id:e.id, name:e.name, model:e.model, cost:e.purchase_cost, engine_hours:e.engine_hours||0, status:e.status, purchase_date:e.purchase_date||'', last_maintenance:e.last_maintenance||'', next_maintenance:e.next_maintenance||'', notes:e.notes||'' }));
   const maintData = await apiFetch('/maintenances');
   maintenances = Array.isArray(maintData) ? maintData : [];
+  const consData = await apiFetch('/consumables');
+  consumables = Array.isArray(consData) ? consData : [];
   loadContactsFromStorage();
   buildDashYearFilter();
+  buildKanbanYearFilter();
   buildDash(); buildKanban();
   buildExpenseYearFilter();
   const catSel = document.getElementById('cat-filter');
@@ -1766,7 +2009,7 @@ async function loadAll() {
     catSel.innerHTML = '<option value="">Все категории</option>';
     [...new Set(expenses.map(e=>e.cat))].sort().forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
   }
-  renderExpenses(); buildEquipment(); renderServices();
+  renderExpenses(); buildEquipment(); renderConsumables(); renderServices();
   showToast('✅ Данные загружены');
 }
 
@@ -1876,6 +2119,7 @@ document.addEventListener('DOMContentLoaded', function() {
   buildServiceFilter();
   renderServices();
   initDealServicePicker();
+  initMaintenanceConsumablePicker();
 });
 </script>
 
