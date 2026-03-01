@@ -225,6 +225,7 @@
   .col-cards::-webkit-scrollbar { width: 3px; }
   .col-cards::-webkit-scrollbar-track { background: transparent; }
   .col-cards::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .col-cards.drag-over { outline: 1px dashed var(--green); background: #21301255; border-radius: 8px; }
 
   .deal-card {
     background: var(--card);
@@ -247,6 +248,7 @@
   }
   .deal-card:hover { border-color: var(--green-dim); transform: translateY(-1px); }
   .deal-card:hover::before { opacity: 1; }
+  .deal-card.dragging { opacity: .5; }
 
   .deal-client { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px; }
   .deal-title { font-size: 11px; color: var(--text3); margin-bottom: 8px; line-height: 1.4; }
@@ -492,6 +494,17 @@
     color: var(--text3);
     font-size: 11px;
   }
+
+  .contacts-editor {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    background: var(--bg3);
+    margin-top: 8px;
+  }
+  .contacts-toolbar { display: flex; gap: 8px; margin-top: 8px; }
+  .contacts-toolbar .btn-cancel,
+  .contacts-toolbar .btn-save { padding: 8px; font-size: 11px; }
 
   .modal-footer { display: flex; gap: 10px; margin-top: 20px; }
   .btn-cancel {
@@ -864,7 +877,19 @@
 <div class="modal-overlay" id="modal-deal">
   <div class="modal">
     <h2>НОВАЯ СДЕЛКА</h2>
-    <div class="form-group"><label>Клиент</label><input id="f-client" placeholder="Иванов А.П."></div>
+    <div class="form-group">
+      <label>Контакт</label>
+      <select id="f-contact-select" onchange="onContactSelect(this.value)"></select>
+      <div class="contacts-editor">
+        <input id="f-client" placeholder="Имя контакта" style="margin-bottom:8px;">
+        <input id="f-contact-phone" placeholder="Телефон" style="margin-bottom:8px;">
+        <input id="f-contact-email" placeholder="E-mail">
+        <div class="contacts-toolbar">
+          <button type="button" class="btn-cancel" onclick="resetContactForm()">Очистить</button>
+          <button type="button" class="btn-save" onclick="saveContactFromForm()">Сохранить контакт</button>
+        </div>
+      </div>
+    </div>
     <div class="form-group"><label>Название</label><input id="f-title" placeholder="Покос участка, 10 соток"></div>
     <div class="form-group"><label>Адрес</label><input id="f-address" placeholder="ул. Лесная, 12"></div>
     
@@ -938,6 +963,8 @@ let STAGES = [];
 let deals = [];
 let expenses = [];
 let equipment = [];
+let contacts = [];
+let draggedDealId = null;
 
 const SERVICES = [
   { name:'Покос травы (до 20 см)',         cat:'Покос травы',         unit:'сотка', min:3,  price:350  },
@@ -1070,9 +1097,9 @@ function buildKanban(filter='') {
           <h4>${stage.name}</h4>
           <div class="col-count">${stageDeal.length}</div>
         </div>
-        <div class="col-cards">
+        <div class="col-cards" ondragover="onColumnDragOver(event)" ondragleave="onColumnDragLeave(event)" ondrop="onDealDrop(event, ${stage.id})">
           ${stageDeal.map(d => `
-            <div class="deal-card" onclick="openDealDetails(${d.id})">
+            <div class="deal-card" draggable="true" ondragstart="onDealDragStart(event, ${d.id})" ondragend="onDealDragEnd(event)" onclick="openDealDetails(${d.id})">
               <div class="deal-client">${d.client}</div>
               <div class="deal-title">${d.title}</div>
               <div class="deal-footer">
@@ -1087,6 +1114,63 @@ function buildKanban(filter='') {
   }).join('');
 }
 
+
+
+function onDealDragStart(event, dealId) {
+  draggedDealId = dealId;
+  event.dataTransfer.effectAllowed = 'move';
+  event.dataTransfer.setData('text/plain', String(dealId));
+  event.currentTarget.classList.add('dragging');
+}
+
+function onDealDragEnd(event) {
+  event.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.col-cards').forEach(col => col.classList.remove('drag-over'));
+}
+
+function onColumnDragOver(event) {
+  event.preventDefault();
+  event.currentTarget.classList.add('drag-over');
+}
+
+function onColumnDragLeave(event) {
+  event.currentTarget.classList.remove('drag-over');
+}
+
+async function onDealDrop(event, stageId) {
+  event.preventDefault();
+  event.currentTarget.classList.remove('drag-over');
+
+  const idFromTransfer = parseInt(event.dataTransfer.getData('text/plain'), 10);
+  const dealId = Number.isFinite(idFromTransfer) ? idFromTransfer : draggedDealId;
+  if (!dealId) return;
+
+  const deal = deals.find(d => d.id === dealId);
+  if (!deal || deal.stage_id === stageId) return;
+
+  const stage = STAGES.find(s => s.id === stageId);
+  if (!stage) return;
+
+  const oldStage = deal.stage_id;
+  deal.stage_id = stageId;
+  buildKanban();
+  buildDash();
+
+  const res = await apiFetch(`/deals/${dealId}/stage`, {
+    method: 'PATCH',
+    body: JSON.stringify({ stage_name: stage.name })
+  });
+
+  if (!res) {
+    deal.stage_id = oldStage;
+    buildKanban();
+    buildDash();
+    showToast('❌ Не удалось переместить сделку');
+    return;
+  }
+
+  showToast(`✅ Сделка перемещена: ${stage.name}`);
+}
 function filterKanban(val) { buildKanban(val); }
 
 // ════════════════════════════════════════
@@ -1190,6 +1274,101 @@ function buildServiceFilter() {
 function filterServices(val) { svcFilter.search = val; renderServices(); }
 function filterServicesCat(val) { svcFilter.cat = val; renderServices(); }
 
+function loadContactsFromStorage() {
+  try {
+    contacts = JSON.parse(localStorage.getItem('crm_contacts') || '[]');
+    if (!Array.isArray(contacts)) contacts = [];
+  } catch {
+    contacts = [];
+  }
+
+  const namesFromDeals = [...new Set(deals.map(d => (d.client || '').trim()).filter(Boolean))];
+  namesFromDeals.forEach(name => {
+    if (!contacts.some(c => c.name === name)) {
+      contacts.push({ id: Date.now() + Math.random(), name, phone: '', email: '' });
+    }
+  });
+
+  persistContacts();
+  renderContactsSelect();
+}
+
+function persistContacts() {
+  localStorage.setItem('crm_contacts', JSON.stringify(contacts));
+}
+
+function renderContactsSelect() {
+  const select = document.getElementById('f-contact-select');
+  if (!select) return;
+
+  select.innerHTML = '<option value="">Новый контакт…</option>' + contacts
+    .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
+    .map(c => `<option value="${c.id}">${c.name}${c.phone ? ' — ' + c.phone : ''}</option>`)
+    .join('');
+}
+
+function onContactSelect(contactId) {
+  const contact = contacts.find(c => String(c.id) === String(contactId));
+  if (!contact) {
+    resetContactForm();
+    return;
+  }
+
+  document.getElementById('f-client').value = contact.name || '';
+  document.getElementById('f-contact-phone').value = contact.phone || '';
+  document.getElementById('f-contact-email').value = contact.email || '';
+}
+
+function resetContactForm() {
+  document.getElementById('f-contact-select').value = '';
+  document.getElementById('f-client').value = '';
+  document.getElementById('f-contact-phone').value = '';
+  document.getElementById('f-contact-email').value = '';
+}
+
+function saveContactFromForm() {
+  const name = document.getElementById('f-client').value.trim();
+  const phone = document.getElementById('f-contact-phone').value.trim();
+  const email = document.getElementById('f-contact-email').value.trim();
+  if (!name) {
+    showToast('⚠️ Укажите имя контакта');
+    return;
+  }
+
+  let contact = contacts.find(c => c.name.toLowerCase() === name.toLowerCase());
+  if (contact) {
+    contact.phone = phone;
+    contact.email = email;
+  } else {
+    contact = { id: Date.now(), name, phone, email };
+    contacts.push(contact);
+  }
+
+  persistContacts();
+  renderContactsSelect();
+  document.getElementById('f-contact-select').value = String(contact.id);
+  showToast('✅ Контакт сохранён');
+}
+
+function saveContactSilentlyFromDealForm() {
+  const name = document.getElementById('f-client').value.trim();
+  if (!name) return;
+  const phone = document.getElementById('f-contact-phone').value.trim();
+  const email = document.getElementById('f-contact-email').value.trim();
+
+  let contact = contacts.find(c => c.name.toLowerCase() === name.toLowerCase());
+  if (!contact) {
+    contact = { id: Date.now(), name, phone, email };
+    contacts.push(contact);
+  } else {
+    contact.phone = phone;
+    contact.email = email;
+  }
+
+  persistContacts();
+  renderContactsSelect();
+}
+
 // ════════════════════════════════════════
 //  МОДАЛЬНЫЕ ОКНА
 // ════════════════════════════════════════
@@ -1204,14 +1383,16 @@ function resetDealModalState() {
     saveBtn.setAttribute('onclick', 'saveDeal()');
   }
 
-  ['f-client', 'f-title', 'f-address', 'f-sum', 'f-notes', 'f-service-search'].forEach(id => {
+  ['f-client', 'f-contact-phone', 'f-contact-email', 'f-title', 'f-address', 'f-sum', 'f-notes', 'f-service-search'].forEach(id => {
     const field = document.getElementById(id);
     if (field) field.value = '';
   });
 
   fillSelectedServicesFromString('');
   document.getElementById('service-suggest')?.classList.remove('open');
+  document.getElementById('f-contact-select').value = '';
 }
+
 
 function openDealModal() {
   resetDealModalState();
@@ -1238,6 +1419,10 @@ function openDealDetails(dealId) {
   
   // Заполняем форму данными
   document.getElementById('f-client').value = deal.client || '';
+  const contact = contacts.find(c => c.name === (deal.client || ''));
+  document.getElementById('f-contact-phone').value = contact?.phone || '';
+  document.getElementById('f-contact-email').value = contact?.email || '';
+  document.getElementById('f-contact-select').value = contact ? String(contact.id) : '';
   document.getElementById('f-title').value = deal.title || '';
   document.getElementById('f-address').value = deal.address || '';
   fillSelectedServicesFromString(deal.services || '');
@@ -1269,6 +1454,7 @@ document.querySelectorAll('.modal-overlay').forEach(m => {
 async function saveDeal() {
   const client = document.getElementById('f-client').value.trim();
   const title  = document.getElementById('f-title').value.trim();
+  saveContactSilentlyFromDealForm();
   if (!client || !title) { alert('Заполните клиента и название'); return; }
 
   const res = await apiFetch('/deals', {
@@ -1293,6 +1479,7 @@ async function saveDeal() {
 async function updateDeal(dealId) {
   const client = document.getElementById('f-client').value.trim();
   const title  = document.getElementById('f-title').value.trim();
+  saveContactSilentlyFromDealForm();
   if (!client || !title) {
     alert('Заполните клиента и название');
     return;
@@ -1400,7 +1587,9 @@ async function loadAll() {
   client: d.client,
   title: d.title,
   address: d.address || '',
-  services: d.services || '',
+  services: Array.isArray(d.services)
+    ? d.services.map(s => `${s.name}:${s.qty}`).join(',')
+    : (d.services || ''),
   notes: d.notes || '',
   stage_id: STAGES.find(s => s.name === d.stage)?.id || 1,
   sum: d.total || 0,
@@ -1428,6 +1617,9 @@ async function loadAll() {
       icon: equip_icon(e.name)
     }));
   }
+
+  // Обновляем контакты
+  loadContactsFromStorage();
 
   // Перерисовываем всё
   buildDash();
