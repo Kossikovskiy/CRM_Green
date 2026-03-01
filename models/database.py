@@ -67,6 +67,7 @@ class Deal(Base):
     manager = Column(String(100), default="")
     address = Column(String(300), default="")
     notes = Column(Text, default="")
+    vat_rate = Column(String(10), default="no_vat")  # no_vat | vat_4 | vat_6
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     closed_at = Column(DateTime, nullable=True)
@@ -202,3 +203,9 @@ def init_db(engine):
         if "engine_hours" not in columns:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE equipment ADD COLUMN engine_hours FLOAT DEFAULT 0"))
+
+    if "deals" in inspector.get_table_names():
+        deal_columns = {c["name"] for c in inspector.get_columns("deals")}
+        if "vat_rate" not in deal_columns:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE deals ADD COLUMN vat_rate VARCHAR(10) DEFAULT 'no_vat'"))

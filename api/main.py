@@ -154,6 +154,7 @@ class DealCreate(BaseModel):
     manager: str = ""
     address: str = ""
     notes: str = ""
+    vat_rate: str = "no_vat"
     services: Any = []
 
 class DealUpdate(BaseModel):
@@ -162,6 +163,7 @@ class DealUpdate(BaseModel):
     manager: str = ""
     address: str = ""
     notes: str = ""
+    vat_rate: str = "no_vat"
     services: Any = []
 
 class StageUpdate(BaseModel):
@@ -202,6 +204,7 @@ class MaintenanceCreate(BaseModel):
     description: str
     cost: float = 0
     performed_by: str = ""
+    equipment_id: Optional[int] = None
     consumables: List[MaintenanceConsumableIn] = []
 
 
@@ -294,6 +297,7 @@ def get_deals(
             "stage": d.stage.name if d.stage else None,
             "stage_color": d.stage.color if d.stage else "#6B7280",
             "manager": d.manager, "address": d.address,
+            "vat_rate": d.vat_rate or "no_vat",
             "total": total,
             "services": [{"name": ds.service.name if ds.service else "?", "qty": ds.quantity, "price": ds.price_at_moment}
                          for ds in d.deal_services],
@@ -351,6 +355,7 @@ def create_deal(body: DealCreate, db: DBSession = Depends(get_db), _=Depends(get
         title=body.title, client=body.client,
         manager=body.manager, address=body.address,
         notes=body.notes,
+        vat_rate=body.vat_rate,
         stage_id=stage.id if stage else None
     )
     db.add(deal)
@@ -373,6 +378,7 @@ def update_deal(deal_id: int, body: DealUpdate, db: DBSession = Depends(get_db),
     deal.manager = body.manager
     deal.address = body.address
     deal.notes = body.notes
+    deal.vat_rate = body.vat_rate
     deal.updated_at = datetime.utcnow()
 
     db.query(DealService).filter(DealService.deal_id == deal.id).delete()
@@ -418,6 +424,7 @@ def get_deal(deal_id: int, db: DBSession = Depends(get_db)):
         "id": deal.id, "title": deal.title, "client": deal.client,
         "stage": deal.stage.name if deal.stage else None,
         "manager": deal.manager, "address": deal.address, "notes": deal.notes,
+        "vat_rate": deal.vat_rate or "no_vat",
         "total": total,
         "services": [{"id": ds.id, "service_id": ds.service_id,
                       "name": ds.service.name if ds.service else "?",
@@ -516,6 +523,36 @@ def update_equipment(equipment_id: int, body: EquipmentCreate, db: DBSession = D
     return {"id": eq.id, "name": eq.name}
 
 
+
+
+def _replace_maintenance_consumables(db: DBSession, maintenance: Maintenance, consumables_payload: List[MaintenanceConsumableIn]) -> float:
+    # Возвращаем старые списания на склад
+    for item in list(maintenance.consumables):
+        if item.consumable:
+            item.consumable.stock_quantity = (item.consumable.stock_quantity or 0) + (item.quantity or 0)
+    db.query(MaintenanceConsumable).filter(MaintenanceConsumable.maintenance_id == maintenance.id).delete()
+
+    total_cost = 0.0
+    for row in consumables_payload or []:
+        c = db.query(Consumable).get(row.consumable_id)
+        if not c:
+            raise HTTPException(404, f"Расходник {row.consumable_id} не найден")
+        qty_base = _convert_to_base(row.quantity, row.unit, c.base_unit)
+        if c.stock_quantity < qty_base:
+            raise HTTPException(400, f"Недостаточно '{c.name}' на складе. Остаток: {round(c.stock_quantity,3)} {_human_unit(c.base_unit)}")
+        subtotal = round(qty_base * (c.price_per_unit or 0), 2)
+        c.stock_quantity = (c.stock_quantity or 0) - qty_base
+        db.add(MaintenanceConsumable(
+            maintenance_id=maintenance.id,
+            consumable_id=c.id,
+            quantity=qty_base,
+            unit_cost=c.price_per_unit or 0,
+            subtotal=subtotal,
+        ))
+        total_cost += subtotal
+    return round(total_cost, 2)
+
+
 @app.get("/api/maintenances")
 def get_maintenances(equipment_id: Optional[int] = Query(None), db: DBSession = Depends(get_db)):
     q = db.query(Maintenance)
@@ -553,33 +590,11 @@ def add_maintenance(equipment_id: int, body: MaintenanceCreate, db: DBSession = 
         raise HTTPException(404, "Техника не найдена")
     maint_date = datetime.strptime(body.date, "%Y-%m-%d").date()
 
-    total_cost = 0.0
-    usage_rows = []
-    for row in body.consumables or []:
-        c = db.query(Consumable).get(row.consumable_id)
-        if not c:
-            raise HTTPException(404, f"Расходник {row.consumable_id} не найден")
-        qty_base = _convert_to_base(row.quantity, row.unit, c.base_unit)
-        if c.stock_quantity < qty_base:
-            raise HTTPException(400, f"Недостаточно '{c.name}' на складе. Остаток: {round(c.stock_quantity,3)} {_human_unit(c.base_unit)}")
-        subtotal = qty_base * (c.price_per_unit or 0)
-        usage_rows.append((c, qty_base, subtotal))
-        total_cost += subtotal
-
     m = Maintenance(equipment_id=equipment_id, date=maint_date,
-                    description=body.description, cost=round(total_cost, 2), performed_by=body.performed_by)
+                    description=body.description, cost=0, performed_by=body.performed_by)
     db.add(m)
     db.flush()
-
-    for c, qty_base, subtotal in usage_rows:
-        c.stock_quantity = (c.stock_quantity or 0) - qty_base
-        db.add(MaintenanceConsumable(
-            maintenance_id=m.id,
-            consumable_id=c.id,
-            quantity=qty_base,
-            unit_cost=c.price_per_unit or 0,
-            subtotal=round(subtotal, 2),
-        ))
+    m.cost = _replace_maintenance_consumables(db, m, body.consumables or [])
 
     today = date.today()
     if maint_date <= today:
@@ -588,6 +603,34 @@ def add_maintenance(equipment_id: int, body: MaintenanceCreate, db: DBSession = 
         eq.next_maintenance = maint_date
     db.commit()
     return {"id": m.id, "equipment": eq.name, "date": str(maint_date), "cost": m.cost}
+
+
+@app.put("/api/maintenances/{maintenance_id}")
+def update_maintenance(maintenance_id: int, body: MaintenanceCreate, db: DBSession = Depends(get_db)):
+    m = db.query(Maintenance).get(maintenance_id)
+    if not m:
+        raise HTTPException(404, "ТО не найдено")
+
+    maint_date = datetime.strptime(body.date, "%Y-%m-%d").date()
+    if body.equipment_id:
+        eq = db.query(Equipment).get(body.equipment_id)
+        if not eq:
+            raise HTTPException(404, "Техника не найдена")
+        m.equipment_id = eq.id
+    m.date = maint_date
+    m.description = body.description
+    m.performed_by = body.performed_by
+    m.cost = _replace_maintenance_consumables(db, m, body.consumables or [])
+
+    if m.equipment:
+        today = date.today()
+        if maint_date <= today:
+            m.equipment.last_maintenance = maint_date
+        else:
+            m.equipment.next_maintenance = maint_date
+
+    db.commit()
+    return {"id": m.id, "equipment": m.equipment.name if m.equipment else None, "date": str(m.date), "cost": m.cost}
 
 
 @app.patch("/api/equipment/{equipment_id}/status")
