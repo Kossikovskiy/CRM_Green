@@ -144,6 +144,7 @@
   .kpi .sub { font-size: 12px; color: var(--text2); margin-top: 8px; }
 
   .dash-bottom { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .dash-toolbar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
 
   .card {
     background: var(--card);
@@ -687,10 +688,11 @@
     <button onclick="showPage('expenses',this)">💸 <span>Расходы</span></button>
     <button onclick="showPage('equipment',this)">🔧 <span>Техника</span></button>
     <button onclick="showPage('services',this)">🌿 <span>Прайс</span></button>
+    <button onclick="showPage('contacts',this)">👥 <span>Контакты</span></button>
   </nav>
   <div class="header-stat">
     <div class="val" id="hdr-revenue">—</div>
-    <div class="lbl">Выручка 2025</div>
+    <div class="lbl" id="hdr-revenue-label">Выручка 2025</div>
   </div>
 </header>
 
@@ -699,11 +701,15 @@
 ════════════════════════════════════════ -->
 <div class="page active" id="page-dash">
 
+  <div class="dash-toolbar">
+    <select class="filter-sel" id="dash-year" onchange="changeDashYear(this.value)"></select>
+  </div>
+
   <div class="dash-grid">
     <div class="kpi">
       <div class="icon">💰</div>
       <div class="val" id="kpi-revenue">—</div>
-      <div class="lbl">Выручка 2025</div>
+      <div class="lbl" id="kpi-revenue-label">Выручка 2025</div>
       <div class="sub" id="kpi-deals-count">— успешных сделок</div>
     </div>
     <div class="kpi" style="--green:#d4a017">
@@ -821,6 +827,26 @@
         <tr><th>Услуга</th><th>Категория</th><th>Единица</th><th>Мин. объём</th><th>Цена</th></tr>
       </thead>
       <tbody id="svc-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+
+
+<!-- ════════════════════════════════════════
+     КОНТАКТЫ
+════════════════════════════════════════ -->
+<div class="page" id="page-contacts">
+  <div class="table-toolbar">
+    <input class="search-input" placeholder="🔍  Поиск контакта..." oninput="filterContacts(this.value)">
+    <button class="btn ml" onclick="openDealModal()">+ Сделка</button>
+  </div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Имя</th><th>Телефон</th><th>E-mail</th><th>Действие</th></tr>
+      </thead>
+      <tbody id="contacts-tbody"></tbody>
     </table>
   </div>
 </div>
@@ -965,6 +991,8 @@ let expenses = [];
 let equipment = [];
 let contacts = [];
 let draggedDealId = null;
+let dashYear = String(new Date().getFullYear());
+let contactsFilter = "";
 
 const SERVICES = [
   { name:'Покос травы (до 20 см)',         cat:'Покос травы',         unit:'сотка', min:3,  price:350  },
@@ -1021,10 +1049,43 @@ function showPage(id, btn) {
 //  ДАШБОРД
 // ════════════════════════════════════════
 
+function getAvailableYears() {
+  const years = new Set();
+  deals.forEach(d => {
+    const y = (d.date || '').slice(0, 4);
+    if (y) years.add(y);
+  });
+  expenses.forEach(e => {
+    const y = (e.date || '').slice(0, 4);
+    if (y) years.add(y);
+  });
+  years.add(String(new Date().getFullYear()));
+  return [...years].sort((a, b) => Number(b) - Number(a));
+}
+
+function buildDashYearFilter() {
+  const select = document.getElementById('dash-year');
+  if (!select) return;
+
+  const years = getAvailableYears();
+  if (!years.includes(dashYear)) dashYear = years[0];
+
+  select.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+  select.value = dashYear;
+}
+
+async function changeDashYear(year) {
+  dashYear = year;
+  await loadAll();
+}
+
 function buildDash() {
-  const successDeals = deals.filter(d => d.stage_id === 6);
+  const dealsForYear = deals.filter(d => (d.date || '').startsWith(dashYear));
+  const expensesForYear = expenses.filter(e => (e.date || '').startsWith(dashYear));
+
+  const successDeals = dealsForYear.filter(d => d.stage_id === 6);
   const revenue = successDeals.reduce((s, d) => s + d.sum, 0);
-  const totalExp = expenses.reduce((s, e) => s + e.amt, 0);
+  const totalExp = expensesForYear.reduce((s, e) => s + e.amt, 0);
   const profit = revenue - totalExp;
   const margin = revenue ? Math.round(profit / revenue * 100) : 0;
   const inRepair = equipment.filter(e => e.status === 'repair').length;
@@ -1036,7 +1097,7 @@ function buildDash() {
   document.getElementById('kpi-revenue').textContent   = fmt(revenue) + ' ₽';
   document.getElementById('kpi-deals-count').textContent = successDeals.length + ' успешных сделок';
   document.getElementById('kpi-expenses').textContent  = fmt(totalExp) + ' ₽';
-  document.getElementById('kpi-exp-count').textContent = expenses.length + ' записей';
+  document.getElementById('kpi-exp-count').textContent = expensesForYear.length + ' записей';
 
   const profitEl = document.getElementById('kpi-profit');
   profitEl.textContent = fmt(profit) + ' ₽';
@@ -1046,8 +1107,15 @@ function buildDash() {
   document.getElementById('kpi-equip').textContent  = equipment.length;
   document.getElementById('kpi-repair').textContent = inRepair + ' в ремонте';
   document.getElementById('hdr-revenue').textContent = fmt(revenue) + ' ₽';
+  document.getElementById('hdr-revenue-label').textContent = `Выручка ${dashYear}`;
 
-  // График по месяцам
+  document.getElementById('kpi-revenue-label').textContent = `Выручка ${dashYear}`;
+  document.getElementById('kpi-expenses').nextElementSibling.textContent = `Расходы ${dashYear}`;
+  document.getElementById('kpi-profit').nextElementSibling.textContent = `Прибыль ${dashYear}`;
+
+  const chartTitle = document.querySelector('#page-dash .dash-bottom .card:first-child .card-head h3');
+  if (chartTitle) chartTitle.textContent = `Выручка по месяцам (${dashYear})`;
+
   const MONTHS = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
   const byMonth = Array(12).fill(0);
   successDeals.forEach(d => {
@@ -1063,9 +1131,8 @@ function buildDash() {
     </div>
   `).join('');
 
-  // Расходы по категориям
   const byCat = {};
-  expenses.forEach(e => { byCat[e.cat] = (byCat[e.cat]||0) + e.amt; });
+  expensesForYear.forEach(e => { byCat[e.cat] = (byCat[e.cat]||0) + e.amt; });
   const maxCat = Math.max(...Object.values(byCat), 1);
   const catList = document.getElementById('exp-cat-list');
   catList.innerHTML = Object.entries(byCat)
@@ -1291,6 +1358,7 @@ function loadContactsFromStorage() {
 
   persistContacts();
   renderContactsSelect();
+  renderContactsPage();
 }
 
 function persistContacts() {
@@ -1346,6 +1414,7 @@ function saveContactFromForm() {
 
   persistContacts();
   renderContactsSelect();
+  renderContactsPage();
   document.getElementById('f-contact-select').value = String(contact.id);
   showToast('✅ Контакт сохранён');
 }
@@ -1367,6 +1436,40 @@ function saveContactSilentlyFromDealForm() {
 
   persistContacts();
   renderContactsSelect();
+  renderContactsPage();
+}
+
+function renderContactsPage() {
+  const tbody = document.getElementById('contacts-tbody');
+  if (!tbody) return;
+
+  const q = contactsFilter.toLowerCase();
+  const filtered = contacts.filter(c => {
+    if (!q) return true;
+    return [c.name, c.phone, c.email].some(v => (v || '').toLowerCase().includes(q));
+  });
+
+  tbody.innerHTML = filtered.map(c => `
+    <tr>
+      <td style="color:var(--text)">${c.name || '—'}</td>
+      <td>${c.phone || '—'}</td>
+      <td>${c.email || '—'}</td>
+      <td><button class="btn" onclick="createDealForContact('${String(c.id)}')">Сделка</button></td>
+    </tr>
+  `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:22px">Контактов нет</td></tr>';
+}
+
+function filterContacts(val) {
+  contactsFilter = val || '';
+  renderContactsPage();
+}
+
+function createDealForContact(contactId) {
+  openDealModal();
+  const contact = contacts.find(c => String(c.id) === String(contactId));
+  if (!contact) return;
+  document.getElementById('f-contact-select').value = String(contact.id);
+  onContactSelect(String(contact.id));
 }
 
 // ════════════════════════════════════════
@@ -1580,7 +1683,7 @@ async function loadAll() {
   if (stagesData) STAGES = stagesData.map(s => ({ ...s, color: s.color || '#6B7280' }));
 
   // Сделки
-  const dealsData = await apiFetch('/deals?year=2025');
+  const dealsData = await apiFetch(`/deals?year=${dashYear}`);
   if (dealsData && dealsData.deals) {
     deals = dealsData.deals.map(d => ({
   id: d.id,
@@ -1598,7 +1701,7 @@ async function loadAll() {
   }
 
   // Расходы
-  const expData = await apiFetch('/expenses?year=2025');
+  const expData = await apiFetch('/expenses');
   if (expData && expData.expenses) {
     expenses = expData.expenses.map(e => ({
       id: e.id, date: e.date, name: e.name,
@@ -1620,6 +1723,9 @@ async function loadAll() {
 
   // Обновляем контакты
   loadContactsFromStorage();
+
+  // Фильтр годов дашборда
+  buildDashYearFilter();
 
   // Перерисовываем всё
   buildDash();
