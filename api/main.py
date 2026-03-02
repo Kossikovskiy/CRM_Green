@@ -1,3 +1,11 @@
+from fastapi import FastAPI
+from a2wsgi import ASGIMiddleware
+# ... остальные ваши импорты
+
+# Блок для локального запуска через uvicorn (не влияет на Passenger)
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=8000)
 """
 FastAPI REST API для CRM
 Запуск: uvicorn api.main:app --reload --port 8000
@@ -806,6 +814,9 @@ def telegram_test():
     ok = tg_send(report)
     return {"sent": ok, "preview": report[:300] + "..."}
 
+python
+
+application = ASGIMiddleware(app)
 
 if __name__ == "__main__":
     import uvicorn
