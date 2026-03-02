@@ -30,7 +30,7 @@ from api.auth_module import (
 from models.database import (
     get_engine, get_session_factory, init_db,
     Stage, Service, ServiceCategory, Deal, DealService,
-    Equipment, Maintenance, ExpenseCategory, Expense
+    Equipment, Maintenance, ExpenseCategory, Expense, Task
 )
 
 engine = get_engine()
@@ -344,6 +344,24 @@ class MaintenanceCreate(BaseModel):
     performed_by: str = ""
     equipment_id: Optional[int] = None
     consumables: List[dict] = []
+
+
+class TaskCreate(BaseModel):
+    title: str
+    description: str = ""
+    manager: str = ""
+    due_date: Optional[str] = None
+    priority: str = "normal"
+
+
+class TaskUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    manager: Optional[str] = None
+    due_date: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    is_done: Optional[bool] = None
 
 
 # ── STAGES ────────────────────────────────────
@@ -702,6 +720,144 @@ def get_maintenances(db: DBSession = Depends(get_db)):
         "performed_by": getattr(m, 'performed_by', ''),
         "date": str(m.date),
     } for m in rows]
+
+
+# ── TASKS / REMINDERS ─────────────────────────────
+
+def _parse_task_date(raw: Optional[str]) -> Optional[date]:
+    if not raw:
+        return None
+    raw = raw.strip()
+    if not raw:
+        return None
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
+    raise HTTPException(400, "Неверный формат даты для задачи (используйте ГГГГ-ММ-ДД)")
+
+
+def _task_to_dict(t: Task) -> dict:
+    today = date.today()
+    is_done = (t.status == "done")
+    return {
+        "id": t.id,
+        "title": t.title,
+        "description": t.description or "",
+        "manager": t.manager or "",
+        "due_date": str(t.due_date) if t.due_date else None,
+        "status": t.status or "open",
+        "priority": t.priority or "normal",
+        "created_at": t.created_at.isoformat() if t.created_at else None,
+        "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+        "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+        "is_done": is_done,
+        "is_overdue": bool(t.due_date and not is_done and t.due_date < today),
+        "is_today": bool(t.due_date and not is_done and t.due_date == today),
+    }
+
+
+@app.get("/api/tasks")
+def list_tasks(
+    status: Optional[str] = Query(None),
+    manager: Optional[str] = Query(None),
+    only_open: bool = Query(False),
+    db: DBSession = Depends(get_db),
+    _=Depends(get_current_user),
+):
+    q = db.query(Task)
+    if status:
+        if status == "active":
+            q = q.filter(Task.status.in_(["open", "in_progress"]))
+        else:
+            q = q.filter(Task.status == status)
+    if manager:
+        q = q.filter(Task.manager.ilike(f"%{manager}%"))
+    if only_open:
+        q = q.filter(Task.status.in_(["open", "in_progress"]))
+
+    tasks = q.order_by(Task.due_date.is_(None), Task.due_date, Task.created_at).all()
+    data = [_task_to_dict(t) for t in tasks]
+    return {"tasks": data, "count": len(data)}
+
+
+@app.get("/api/tasks/{task_id}")
+def get_task(task_id: int, db: DBSession = Depends(get_db), _=Depends(get_current_user)):
+    t = db.query(Task).get(task_id)
+    if not t:
+        raise HTTPException(404, "Задача не найдена")
+    return _task_to_dict(t)
+
+
+@app.post("/api/tasks", status_code=201)
+def create_task(body: TaskCreate, db: DBSession = Depends(get_db), current_user: dict = Depends(get_current_user)):
+    due = _parse_task_date(body.due_date)
+    manager = (body.manager or "").strip()
+    if not manager:
+        # По умолчанию менеджером считаем текущего пользователя (ФИО или логин)
+        username = current_user.get("full_name") or current_user.get("username") or ""
+        manager = username
+
+    task = Task(
+        title=body.title.strip(),
+        description=(body.description or "").strip(),
+        manager=manager,
+        due_date=due,
+        priority=(body.priority or "normal").strip() or "normal",
+        status="open",
+    )
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return _task_to_dict(task)
+
+
+@app.put("/api/tasks/{task_id}")
+def update_task(task_id: int, body: TaskUpdate, db: DBSession = Depends(get_db), _=Depends(get_current_user)):
+    task = db.query(Task).get(task_id)
+    if not task:
+        raise HTTPException(404, "Задача не найдена")
+
+    if body.title is not None:
+        task.title = body.title.strip() or task.title
+    if body.description is not None:
+        task.description = (body.description or "").strip()
+    if body.manager is not None:
+        task.manager = (body.manager or "").strip()
+    if body.due_date is not None:
+        task.due_date = _parse_task_date(body.due_date)
+    if body.priority is not None:
+        task.priority = (body.priority or "").strip() or task.priority
+    if body.status is not None:
+        task.status = (body.status or "open").strip() or "open"
+
+    # Упрощённое поле is_done — позволяет быстро отметить выполненной / вернуть в работу
+    if body.is_done is not None:
+        if body.is_done:
+            task.status = "done"
+        elif task.status == "done":
+            task.status = "open"
+
+    # Автоматическое управление completed_at
+    if task.status == "done" and not task.completed_at:
+        task.completed_at = datetime.utcnow()
+    elif task.status != "done":
+        task.completed_at = None
+
+    db.commit()
+    db.refresh(task)
+    return _task_to_dict(task)
+
+
+@app.delete("/api/tasks/{task_id}", dependencies=[Depends(require_admin)])
+def delete_task(task_id: int, db: DBSession = Depends(get_db)):
+    task = db.query(Task).get(task_id)
+    if not task:
+        raise HTTPException(404, "Задача не найдена")
+    db.delete(task)
+    db.commit()
+    return {"detail": "Задача удалена"}
 
 
 # ── CONSUMABLES (заглушка) ────────────────────

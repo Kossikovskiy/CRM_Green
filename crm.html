@@ -1207,6 +1207,7 @@ tr:hover td { background: var(--mist); color: var(--ink); }
   <nav>
     <button class="active" onclick="showPage('dash',this)"><span>Дашборд</span></button>
     <button onclick="showPage('kanban',this)"><span>Сделки</span></button>
+    <button onclick="showPage('tasks',this)"><span>Задачи</span></button>
     <button onclick="showPage('expenses',this)"><span>Расходы</span></button>
     <button onclick="showPage('equipment',this)"><span>Техника</span></button>
     <button onclick="showPage('stock',this)"><span>Склад</span></button>
@@ -1276,6 +1277,16 @@ tr:hover td { background: var(--mist); color: var(--ink); }
       </div>
     </div>
   </div>
+
+  <div class="card" style="margin-top:24px;">
+    <div class="card-head">
+      <h3>Задачи менеджеров</h3>
+      <button class="btn secondary" style="font-size:9px;padding:6px 10px" onclick="showPage('tasks')">Открыть все</button>
+    </div>
+    <div class="card-body" id="dash-tasks-widget">
+      <div style="font-size:12px;color:#aaa;">Задачи будут показаны после загрузки данных.</div>
+    </div>
+  </div>
 </div>
 
 <!-- ════ КАНБАН ════ -->
@@ -1294,6 +1305,44 @@ tr:hover td { background: var(--mist); color: var(--ink); }
     <button class="btn ml" onclick="openDealModal()">+ Новая сделка</button>
   </div>
   <div class="kanban" id="kanban-board"></div>
+</div>
+
+<!-- ════ ЗАДАЧИ ════ -->
+<div class="page" id="page-tasks">
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:24px;">
+    <div>
+      <div class="section-label"><div class="label-line"></div><span class="label-text">Фокус</span></div>
+      <div class="page-title">Задачи <em>менеджеров</em></div>
+    </div>
+    <button class="btn" onclick="openTaskModal()">+ Новая задача</button>
+  </div>
+  <div class="table-toolbar">
+    <input class="search-input" placeholder="Поиск по задачам..." oninput="filterTasksSearch(this.value)">
+    <select class="filter-sel" onchange="filterTasksStatus(this.value)" id="tasks-status-filter">
+      <option value="all">Все задачи</option>
+      <option value="active">Только активные</option>
+      <option value="done">Выполненные</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:#777;margin-left:8px;">
+      <input type="checkbox" id="tasks-only-mine" onchange="toggleTasksOnlyMine(this.checked)">
+      Только мои
+    </label>
+  </div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Задача</th>
+          <th>Срок</th>
+          <th>Ответственный</th>
+          <th>Статус</th>
+          <th>Приоритет</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="tasks-tbody"></tbody>
+    </table>
+  </div>
 </div>
 
 <!-- ════ РАСХОДЫ ════ -->
@@ -1619,6 +1668,57 @@ tr:hover td { background: var(--mist); color: var(--ink); }
   </div>
 </div>
 
+<!-- Задача -->
+<div class="modal-overlay" id="modal-task">
+  <div class="modal">
+    <h2 id="task-modal-title">Новая <em>задача</em></h2>
+    <div class="form-group">
+      <label>Название</label>
+      <input id="ft-title" placeholder="Позвонить клиенту, подготовить КП...">
+    </div>
+    <div class="form-group">
+      <label>Описание</label>
+      <textarea id="ft-desc" placeholder="Кратко опишите задачу"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="margin:0">
+        <label>Срок</label>
+        <input id="ft-due" type="date">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Ответственный</label>
+        <select id="ft-manager">
+          <option value="">— Авто: текущий пользователь —</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group" style="margin:0">
+        <label>Приоритет</label>
+        <select id="ft-priority">
+          <option value="normal">Обычный</option>
+          <option value="high">Высокий</option>
+          <option value="low">Низкий</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Статус</label>
+        <select id="ft-status">
+          <option value="open">Открыта</option>
+          <option value="in_progress">В работе</option>
+          <option value="done">Выполнена</option>
+          <option value="canceled">Отменена</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-task')">Отмена</button>
+      <button class="btn-danger" id="task-delete-btn" onclick="deleteTask()" style="display:none">Удалить</button>
+      <button class="btn-save" id="task-save-btn" onclick="saveTask()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <!-- ════ CONTACT DRAWER ════ -->
 <div class="contact-drawer-overlay" id="contact-drawer-overlay" onclick="closeContactDrawer()"></div>
 <div class="contact-drawer" id="contact-drawer">
@@ -1652,6 +1752,10 @@ tr:hover td { background: var(--mist); color: var(--ink); }
   <button onclick="showPage('kanban',this);syncMobileNav('kanban')">
     <svg viewBox="0 0 24 24"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
     Сделки
+  </button>
+  <button onclick="showPage('tasks',this);syncMobileNav('tasks')">
+    <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    Задачи
   </button>
   <button onclick="showPage('expenses',this);syncMobileNav('expenses')">
     <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
@@ -1708,9 +1812,9 @@ async function apiFetch(path, opts={}) {
   }
 }
 
-let STAGES = [], deals = [], expenses = [], equipment = [], maintenances = [], contacts = [], consumables = [], users = [];
+let STAGES = [], deals = [], expenses = [], equipment = [], maintenances = [], contacts = [], consumables = [], users = [], tasks = [];
 let draggedDealId = null, dashYear = String(new Date().getFullYear()), contactsFilter = '';
-let currentEditingDealId = null, currentEditingEquipmentId = null, currentEditingMaintenanceId = null;
+let currentEditingDealId = null, currentEditingEquipmentId = null, currentEditingMaintenanceId = null, currentEditingTaskId = null;
 let kanbanFilter = { search:'', year:String(new Date().getFullYear()) };
 let currentEditingServiceIdx = null;
 
@@ -1796,7 +1900,7 @@ function resetServicesToDefault() {
 
 /* ── НАВИГАЦИЯ ── */
 function showPage(id, btn) {
-  const ids = ['dash','kanban','expenses','equipment','stock','services','contacts'];
+  const ids = ['dash','kanban','tasks','expenses','equipment','stock','services','contacts'];
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + id).classList.add('active');
@@ -1811,7 +1915,7 @@ function showPage(id, btn) {
 
 function syncMobileNav(id) {
   document.querySelectorAll('#mobile-nav button').forEach(b => b.classList.remove('active'));
-  const pageIndex = ['dash','kanban','expenses','equipment','stock','services','contacts'].indexOf(id);
+  const pageIndex = ['dash','kanban','tasks','expenses','equipment','stock','services','contacts'].indexOf(id);
   const mobileButtons = document.querySelectorAll('#mobile-nav button');
   if (pageIndex >= 0 && mobileButtons[pageIndex]) mobileButtons[pageIndex].classList.add('active');
 }
@@ -2062,6 +2166,241 @@ function buildExpenseYearFilter() {
   const years = [...new Set(expenses.map(e=>(e.date||'').slice(0,4)).filter(Boolean))].sort((a,b)=>Number(b)-Number(a));
   sel.innerHTML = '<option value="">Все годы</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('');
   sel.value = expFilter.year || '';
+}
+
+/* ── ЗАДАЧИ ── */
+let tasksFilter = { search:'', status:'all', onlyMine:false };
+
+function getCurrentUserName() {
+  try {
+    const u = JSON.parse(sessionStorage.getItem('crm_user') || '{}');
+    return (u.full_name || u.username || '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function renderTasks() {
+  const tbody = document.getElementById('tasks-tbody');
+  if (!tbody) return;
+  const q = (tasksFilter.search || '').toLowerCase();
+  const me = tasksFilter.onlyMine ? getCurrentUserName() : '';
+
+  let filtered = Array.isArray(tasks) ? [...tasks] : [];
+
+  if (tasksFilter.status === 'active') {
+    filtered = filtered.filter(t => !t.is_done && t.status !== 'canceled');
+  } else if (tasksFilter.status === 'done') {
+    filtered = filtered.filter(t => t.is_done);
+  }
+
+  if (me) {
+    filtered = filtered.filter(t => (t.manager || '').toLowerCase().includes(me));
+  }
+
+  if (q) {
+    filtered = filtered.filter(t =>
+      (t.title || '').toLowerCase().includes(q) ||
+      (t.description || '').toLowerCase().includes(q) ||
+      (t.manager || '').toLowerCase().includes(q)
+    );
+  }
+
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ccc;padding:32px;font-size:12px;">Задач нет</td></tr>';
+    return;
+  }
+
+  const statusLabel = (s, isOverdue, isToday) => {
+    if (s === 'done') return 'Выполнена';
+    if (s === 'in_progress') return 'В работе';
+    if (s === 'canceled') return 'Отменена';
+    if (isOverdue) return 'Просрочена';
+    if (isToday) return 'Сегодня';
+    return 'Открыта';
+  };
+
+  const statusColor = (s, isOverdue, isToday) => {
+    if (s === 'done') return 'background:#dcfce7;color:#166534';
+    if (s === 'in_progress') return 'background:#e0f2fe;color:#1d4ed8';
+    if (s === 'canceled') return 'background:#fee2e2;color:#b91c1c';
+    if (isOverdue) return 'background:#fee2e2;color:#b91c1c';
+    if (isToday) return 'background:#fef3c7;color:#92400e';
+    return 'background:var(--dew);color:var(--fern)';
+  };
+
+  const priorityLabel = p => {
+    if (p === 'high') return 'Высокий';
+    if (p === 'low') return 'Низкий';
+    return 'Обычный';
+  };
+
+  const priorityColor = p => {
+    if (p === 'high') return 'background:#fee2e2;color:#b91c1c';
+    if (p === 'low') return 'background:#e0f2fe;color:#1d4ed8';
+    return 'background:var(--dew);color:var(--fern)';
+  };
+
+  filtered.sort((a, b) => {
+    const ad = a.due_date || '9999-12-31';
+    const bd = b.due_date || '9999-12-31';
+    if (ad === bd) return (a.id || 0) - (b.id || 0);
+    return ad.localeCompare(bd);
+  });
+
+  tbody.innerHTML = filtered.map(t => {
+    const sLbl = statusLabel(t.status, t.is_overdue, t.is_today);
+    const sStyle = statusColor(t.status, t.is_overdue, t.is_today);
+    const pLbl = priorityLabel(t.priority);
+    const pStyle = priorityColor(t.priority);
+    const due = t.due_date ? formatDate(t.due_date) : '—';
+    const rowClass = t.is_done ? 'style="opacity:.6;"' : '';
+    return `<tr ${rowClass} onclick="openTaskModal(${t.id})">
+      <td style="color:var(--ink);font-weight:400">${t.title}</td>
+      <td>${due}</td>
+      <td>${t.manager || '—'}</td>
+      <td><span class="badge" style="${sStyle}">${sLbl}</span></td>
+      <td><span class="badge" style="${pStyle}">${pLbl}</span></td>
+      <td style="text-align:right">${t.is_done ? '' : '<button class="tiny-btn" onclick="event.stopPropagation(); completeTask('+t.id+')">Готово</button>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTasksWidget() {
+  const box = document.getElementById('dash-tasks-widget');
+  if (!box) return;
+  const open = (Array.isArray(tasks) ? tasks : []).filter(t => !t.is_done && t.status !== 'canceled');
+  if (!open.length) {
+    box.innerHTML = '<div style="font-size:12px;color:#aaa;">Активных задач нет — можно сосредоточиться на новых сделках.</div>';
+    return;
+  }
+  const today = new Date().toISOString().split('T')[0];
+  const overdue = open.filter(t => t.due_date && t.due_date < today);
+  const todayTasks = open.filter(t => t.due_date === today);
+  const soon = open
+    .slice()
+    .sort((a,b) => (a.due_date || '9999-12-31').localeCompare(b.due_date || '9999-12-31'))
+    .slice(0,5);
+  box.innerHTML = `
+    <div style="display:flex;gap:16px;margin-bottom:10px;font-size:11px;color:#777;">
+      <div>Всего активных: <strong>${open.length}</strong></div>
+      <div>Сегодня: <strong>${todayTasks.length}</strong></div>
+      <div style="color:${overdue.length ? '#b91c1c' : '#16a34a'}">Просрочены: <strong>${overdue.length}</strong></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;font-size:12px;">
+      ${soon.map(t => `
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:center;cursor:pointer;" onclick="showPage('tasks');openTaskModal(${t.id})">
+          <div style="flex:1;min-width:0;">
+            <div style="color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.title}</div>
+            <div style="font-size:11px;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.manager || ''}</div>
+          </div>
+          <div style="text-align:right;font-size:11px;color:${t.is_overdue ? '#b91c1c' : (t.is_today ? '#92400e' : '#64748b')}">
+            ${t.due_date ? formatDate(t.due_date) : 'Без срока'}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function filterTasksSearch(val) { tasksFilter.search = val || ''; renderTasks(); }
+function filterTasksStatus(val) { tasksFilter.status = val || 'all'; renderTasks(); }
+function toggleTasksOnlyMine(checked) { tasksFilter.onlyMine = !!checked; renderTasks(); }
+
+function resetTaskModal() {
+  currentEditingTaskId = null;
+  document.getElementById('task-modal-title').innerHTML = 'Новая <em>задача</em>';
+  document.getElementById('ft-title').value = '';
+  document.getElementById('ft-desc').value = '';
+  const due = document.getElementById('ft-due');
+  if (due) due.value = new Date().toISOString().split('T')[0];
+  const mgrSel = document.getElementById('ft-manager');
+  if (mgrSel) mgrSel.value = '';
+  const prSel = document.getElementById('ft-priority');
+  if (prSel) prSel.value = 'normal';
+  const stSel = document.getElementById('ft-status');
+  if (stSel) stSel.value = 'open';
+  const delBtn = document.getElementById('task-delete-btn');
+  if (delBtn) delBtn.style.display = 'none';
+}
+
+function openTaskModal(taskId) {
+  const modal = document.getElementById('modal-task');
+  if (!modal) return;
+  const mgrSel = document.getElementById('ft-manager');
+  if (mgrSel && Array.isArray(users) && users.length) {
+    const cur = mgrSel.value;
+    mgrSel.innerHTML = '<option value=\"\">— Авто: текущий пользователь —</option>' +
+      users.map(u => `<option value=\"${u.full_name||u.username}\">${u.full_name||u.username}</option>`).join('');
+    if (cur) mgrSel.value = cur;
+  }
+  if (!taskId) {
+    resetTaskModal();
+  } else {
+    const t = tasks.find(x => x.id === taskId);
+    if (!t) { resetTaskModal(); }
+    else {
+      currentEditingTaskId = taskId;
+      document.getElementById('task-modal-title').innerHTML = 'Редактирование <em>задачи</em>';
+      document.getElementById('ft-title').value = t.title || '';
+      document.getElementById('ft-desc').value = t.description || '';
+      const due = document.getElementById('ft-due');
+      if (due) due.value = t.due_date || new Date().toISOString().split('T')[0];
+      if (mgrSel) mgrSel.value = t.manager || '';
+      const prSel = document.getElementById('ft-priority');
+      if (prSel) prSel.value = t.priority || 'normal';
+      const stSel = document.getElementById('ft-status');
+      if (stSel) stSel.value = t.status || 'open';
+      const delBtn = document.getElementById('task-delete-btn');
+      if (delBtn) delBtn.style.display = isAdmin() ? 'inline-block' : 'none';
+    }
+  }
+  modal.classList.add('open');
+}
+
+async function saveTask() {
+  const title = document.getElementById('ft-title').value.trim();
+  if (!title) { alert('Укажите название задачи'); return; }
+  const desc = document.getElementById('ft-desc').value.trim();
+  const due = document.getElementById('ft-due').value;
+  const manager = document.getElementById('ft-manager').value;
+  const priority = document.getElementById('ft-priority').value || 'normal';
+  const status = document.getElementById('ft-status').value || 'open';
+  const payload = {
+    title,
+    description: desc,
+    manager,
+    due_date: due || null,
+    priority,
+    status
+  };
+  const isEdit = !!currentEditingTaskId;
+  const url = isEdit ? `/tasks/${currentEditingTaskId}` : '/tasks';
+  const method = isEdit ? 'PUT' : 'POST';
+  const res = await apiFetch(url, { method, body: JSON.stringify(payload) });
+  if (!res) return;
+  closeModal('modal-task');
+  await loadAll();
+  showToast(isEdit ? '✅ Задача обновлена' : '✅ Задача создана');
+}
+
+async function completeTask(taskId) {
+  const t = tasks.find(x => x.id === taskId);
+  if (!t || t.is_done) return;
+  const res = await apiFetch(`/tasks/${taskId}`, { method:'PUT', body:JSON.stringify({ is_done:true }) });
+  if (!res) return;
+  await loadAll();
+  showToast('✅ Задача выполнена');
+}
+
+async function deleteTask() {
+  if (!isAdmin() || !currentEditingTaskId) return;
+  if (!confirm('Удалить задачу?')) return;
+  const res = await apiFetch(`/tasks/${currentEditingTaskId}`, { method:'DELETE' });
+  if (!res) return;
+  closeModal('modal-task');
+  await loadAll();
+  showToast('✅ Задача удалена');
 }
 
 /* ── ТЕХНИКА ── */
@@ -2613,6 +2952,7 @@ function closeModal(id) {
   if (id === 'modal-maintenance') currentEditingMaintenanceId = null;
   if (id === 'modal-service') currentEditingServiceIdx = null;
   if (id === 'modal-contact-edit') currentEditingContactId = null;
+  if (id === 'modal-task') currentEditingTaskId = null;
 }
 
 document.querySelectorAll('.modal-overlay').forEach(m => {
@@ -2902,6 +3242,10 @@ async function loadAll() {
   maintenances = Array.isArray(maintData) ? maintData : [];
   const consData = await apiFetch('/consumables');
   consumables = Array.isArray(consData) ? consData : [];
+  const tasksData = await apiFetch('/tasks');
+  if (Array.isArray(tasksData?.tasks)) tasks = tasksData.tasks;
+  else if (Array.isArray(tasksData)) tasks = tasksData;
+  else tasks = [];
   loadContactsFromStorage();
   const usersData = await apiFetch('/users');
   if (Array.isArray(usersData)) {
@@ -2922,7 +3266,7 @@ async function loadAll() {
     catSel.innerHTML = '<option value="">Все категории</option>';
     [...new Set(expenses.map(e=>e.cat))].sort().forEach(c=>{ const o=document.createElement('option'); o.value=c; o.textContent=c; catSel.appendChild(o); });
   }
-  renderExpenses(); buildEquipment(); renderConsumables(); renderServices();
+  renderExpenses(); buildEquipment(); renderConsumables(); renderServices(); renderTasks(); renderTasksWidget();
   showToast('✅ Данные загружены');
 }
 

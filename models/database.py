@@ -185,6 +185,22 @@ class Expense(Base):
     equipment = relationship("Equipment", back_populates="expenses")
 
 
+class Task(Base):
+    """Напоминания / задачи для менеджеров"""
+    __tablename__ = "tasks"
+
+    id = Column(Integer, primary_key=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, default="")
+    manager = Column(String(100), default="")
+    due_date = Column(Date, nullable=True)
+    status = Column(String(20), default="open")      # open | in_progress | done | canceled
+    priority = Column(String(20), default="normal")  # low | normal | high
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+
 def get_engine(url: str = DATABASE_URL):
     return create_engine(url, echo=False)
 
