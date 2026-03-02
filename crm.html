@@ -640,6 +640,206 @@ tr:hover td { background: var(--mist); color: var(--ink); }
   position: relative;
 }
 .modal.wide { width: 680px; }
+
+/* ════ CONTACT DRAWER ════ */
+.contact-drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20,40,16,.35);
+  z-index: 300;
+  display: none;
+  backdrop-filter: blur(2px);
+}
+.contact-drawer-overlay.open { display: block; }
+.contact-drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: 480px;
+  max-width: 100vw;
+  background: var(--cream);
+  border-left: 1px solid var(--border);
+  z-index: 301;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow: -8px 0 32px rgba(20,40,16,.12);
+}
+.contact-drawer.open { transform: translateX(0); }
+.contact-drawer-header {
+  padding: 28px 28px 20px;
+  border-bottom: 1px solid var(--dew);
+  background: var(--forest);
+  position: relative;
+  flex-shrink: 0;
+}
+.contact-drawer-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--moss), var(--sage), var(--moss));
+}
+.contact-drawer-close {
+  position: absolute;
+  top: 16px; right: 16px;
+  background: rgba(255,255,255,.1);
+  border: none;
+  color: rgba(255,255,255,.7);
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s;
+}
+.contact-drawer-close:hover { background: rgba(255,255,255,.2); color: #fff; }
+.contact-drawer-avatar {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--moss);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+}
+.contact-drawer-name {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+.contact-drawer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.contact-drawer-meta a,
+.contact-drawer-meta span {
+  font-size: 12px;
+  color: rgba(255,255,255,.55);
+  text-decoration: none;
+}
+.contact-drawer-meta a:hover { color: var(--sage); }
+.contact-drawer-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+.contact-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px;
+}
+.contact-drawer-section-title {
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--fern);
+  font-weight: 600;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.contact-drawer-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--dew);
+}
+.contact-deal-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all .2s;
+  border-left: 3px solid var(--border);
+}
+.contact-deal-card:hover { border-color: var(--fern); box-shadow: 0 4px 12px var(--shadow); transform: translateX(2px); }
+.contact-deal-stage-dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.contact-deal-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--forest);
+  margin-bottom: 4px;
+}
+.contact-deal-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+.contact-deal-sum {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+.contact-deal-date { font-size: 10px; color: #bbb; }
+.contact-deal-stage-badge {
+  font-size: 9px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.contact-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 24px;
+}
+.contact-stat-box {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 12px;
+  text-align: center;
+}
+.contact-stat-val {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--forest);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.contact-stat-lbl {
+  font-size: 9px;
+  color: #aaa;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.no-deals-placeholder {
+  text-align: center;
+  padding: 40px 20px;
+  color: #ccc;
+  font-size: 13px;
+}
+.no-deals-placeholder svg {
+  width: 40px; height: 40px;
+  stroke: var(--dew);
+  fill: none;
+  stroke-width: 1.5;
+  margin-bottom: 12px;
+}
+@media (max-width: 600px) {
+  .contact-drawer { width: 100vw; }
+}
 .modal::before {
   content: '';
   position: absolute;
@@ -1352,6 +1552,29 @@ tr:hover td { background: var(--mist); color: var(--ink); }
   </div>
 </div>
 
+<!-- ════ CONTACT DRAWER ════ -->
+<div class="contact-drawer-overlay" id="contact-drawer-overlay" onclick="closeContactDrawer()"></div>
+<div class="contact-drawer" id="contact-drawer">
+  <div class="contact-drawer-header">
+    <button class="contact-drawer-close" onclick="closeContactDrawer()">✕</button>
+    <div class="contact-drawer-avatar" id="cd-avatar">И</div>
+    <div class="contact-drawer-name" id="cd-name">Имя контакта</div>
+    <div class="contact-drawer-meta">
+      <a id="cd-phone" href="#"></a>
+      <a id="cd-email" href="#"></a>
+    </div>
+    <div class="contact-drawer-actions">
+      <button class="btn" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.2)" onclick="editContactFromDrawer()">✏️ Редактировать</button>
+      <button class="btn ml" style="background:var(--sage);color:var(--forest)" onclick="newDealFromDrawer()">+ Новая сделка</button>
+    </div>
+  </div>
+  <div class="contact-drawer-body">
+    <div class="contact-stats" id="cd-stats"></div>
+    <div class="contact-drawer-section-title">История сделок</div>
+    <div id="cd-deals-list"></div>
+  </div>
+</div>
+
 <!-- Тост -->
 <!-- МОБИЛЬНАЯ НАВИГАЦИЯ -->
 <div id="mobile-nav">
@@ -1946,13 +2169,13 @@ function renderContactsPage() {
   const q = contactsFilter.toLowerCase();
   const filtered = contacts.filter(c => !q || [c.name,c.phone,c.email].some(v=>(v||'').toLowerCase().includes(q)));
   tbody.innerHTML = filtered.map(c => `
-    <tr>
+    <tr style="cursor:pointer" onclick="openContactDrawer('${String(c.id)}')">
       <td style="color:var(--ink);font-weight:400">${c.name||'—'}</td>
       <td>${c.phone||'—'}</td>
       <td>${c.email||'—'}</td>
-      <td style="display:flex;gap:6px;">
-        <button class="tiny-btn" onclick="openContactEditModal('${String(c.id)}')">✏️ Изменить</button>
-        <button class="btn" onclick="createDealForContact('${String(c.id)}')">Сделка</button>
+      <td style="display:flex;gap:6px;" onclick="event.stopPropagation()">
+        <button class="tiny-btn" onclick="openContactEditModal('${String(c.id)}')">✏️</button>
+        <button class="btn" onclick="createDealForContact('${String(c.id)}')">+ Сделка</button>
       </td>
     </tr>
   `).join('') || '<tr><td colspan="4" style="text-align:center;color:#ccc;padding:32px;font-size:12px">Контактов нет</td></tr>';
@@ -2000,6 +2223,104 @@ function createDealForContact(contactId) {
   if (!c) return;
   document.getElementById('f-contact-select').value = String(c.id);
   onContactSelect(String(c.id));
+}
+
+/* ── CONTACT DRAWER ── */
+let currentDrawerContactId = null;
+
+function openContactDrawer(contactId) {
+  const c = contacts.find(x=>String(x.id)===String(contactId));
+  if (!c) return;
+  currentDrawerContactId = contactId;
+
+  // Header
+  const initials = (c.name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+  document.getElementById('cd-avatar').textContent = initials;
+  document.getElementById('cd-name').textContent = c.name||'—';
+
+  const phoneEl = document.getElementById('cd-phone');
+  if (c.phone) { phoneEl.textContent = c.phone; phoneEl.href = 'tel:' + c.phone; phoneEl.style.display=''; }
+  else phoneEl.style.display = 'none';
+
+  const emailEl = document.getElementById('cd-email');
+  if (c.email) { emailEl.textContent = c.email; emailEl.href = 'mailto:' + c.email; emailEl.style.display=''; }
+  else emailEl.style.display = 'none';
+
+  // Deals for this contact
+  const contactDeals = deals.filter(d => (d.client||'').toLowerCase().trim() === (c.name||'').toLowerCase().trim());
+  const successDeals = contactDeals.filter(d => {
+    const stage = STAGES.find(s=>s.id===d.stage_id);
+    return stage && (stage.type==='success' || (stage.name||'').toLowerCase().includes('успех'));
+  });
+  const totalRevenue = successDeals.reduce((s,d)=>s+(d.sum||0), 0);
+
+  // Stats
+  document.getElementById('cd-stats').innerHTML = `
+    <div class="contact-stat-box">
+      <div class="contact-stat-val">${contactDeals.length}</div>
+      <div class="contact-stat-lbl">Всего сделок</div>
+    </div>
+    <div class="contact-stat-box">
+      <div class="contact-stat-val">${successDeals.length}</div>
+      <div class="contact-stat-lbl">Успешных</div>
+    </div>
+    <div class="contact-stat-box">
+      <div class="contact-stat-val">${totalRevenue > 0 ? (totalRevenue >= 1000 ? Math.round(totalRevenue/1000)+'к' : totalRevenue.toLocaleString('ru')) : '—'}</div>
+      <div class="contact-stat-lbl">Выручка ₽</div>
+    </div>
+  `;
+
+  // Deals list — sorted newest first
+  const dealsSorted = [...contactDeals].sort((a,b) => new Date(b.date) - new Date(a.date));
+  if (dealsSorted.length === 0) {
+    document.getElementById('cd-deals-list').innerHTML = `
+      <div class="no-deals-placeholder">
+        <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div>Сделок с этим контактом пока нет</div>
+      </div>`;
+  } else {
+    document.getElementById('cd-deals-list').innerHTML = dealsSorted.map(d => {
+      const stage = STAGES.find(s=>s.id===d.stage_id);
+      const color = stage?.color || '#94a3b8';
+      const isSuccess = stage && (stage.type==='success' || (stage.name||'').toLowerCase().includes('успех'));
+      const isFail = stage && (stage.type==='fail' || (stage.name||'').toLowerCase().includes('провал') || (stage.name||'').toLowerCase().includes('отказ'));
+      const sumColor = isSuccess ? 'var(--moss)' : (isFail ? 'var(--rust)' : 'var(--forest)');
+      return `
+        <div class="contact-deal-card" style="border-left-color:${color}" onclick="closeContactDrawer();openDealDetails(${d.id})">
+          <div class="contact-deal-title">${d.title}</div>
+          <div style="font-size:11px;color:#aaa;margin-bottom:2px">${d.address||''}</div>
+          <div class="contact-deal-meta">
+            <div class="contact-deal-sum" style="color:${sumColor}">${(d.sum||0).toLocaleString('ru')} ₽</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="contact-deal-stage-badge" style="background:${color}18;color:${color}">
+                <span class="contact-deal-stage-dot" style="background:${color}"></span>${stage?.name||'—'}
+              </span>
+              <span class="contact-deal-date">${formatDate(d.date)}</span>
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  document.getElementById('contact-drawer-overlay').classList.add('open');
+  document.getElementById('contact-drawer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeContactDrawer() {
+  document.getElementById('contact-drawer-overlay').classList.remove('open');
+  document.getElementById('contact-drawer').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function editContactFromDrawer() {
+  closeContactDrawer();
+  openContactEditModal(currentDrawerContactId);
+}
+
+function newDealFromDrawer() {
+  closeContactDrawer();
+  createDealForContact(currentDrawerContactId);
 }
 
 /* ── МОДАЛЬНЫЕ ОКНА ── */
