@@ -1228,6 +1228,21 @@ tr:hover td { background: var(--mist); color: var(--ink); }
   </div>
 </div>
 
+<!-- Редактирование контакта -->
+<div class="modal-overlay" id="modal-contact-edit">
+  <div class="modal">
+    <h2>Редактирование <em>контакта</em></h2>
+    <div class="form-group"><label>Имя</label><input id="fce-name" placeholder="Иван Иванов"></div>
+    <div class="form-group"><label>Телефон</label><input id="fce-phone" placeholder="+7 900 000-00-00"></div>
+    <div class="form-group"><label>E-mail</label><input id="fce-email" placeholder="ivan@example.com"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modal-contact-edit')">Отмена</button>
+      <button class="btn-danger" onclick="deleteCurrentContact()">Удалить</button>
+      <button class="btn-save" onclick="saveContactEdit()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
 <!-- Сделка -->
 <div class="modal-overlay" id="modal-deal">
   <div class="modal">
@@ -1260,6 +1275,7 @@ tr:hover td { background: var(--mist); color: var(--ink); }
     </div>
     <div class="form-group"><label>Сумма (₽)</label><input id="f-sum" type="number" placeholder="5000"></div>
     <div class="form-group"><label>НДС (включён в стоимость)</label><select id="f-vat"><option value="no_vat">Без НДС</option><option value="vat_4">НДС 4%</option><option value="vat_6">НДС 6%</option></select></div>
+    <div class="form-group" id="f-date-group" style="display:none"><label>Дата сделки</label><input id="f-date" type="date"></div>
     <div class="form-group"><label>Примечание</label><input id="f-notes" placeholder="..."></div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeModal('modal-deal')">Отмена</button>
@@ -1828,11 +1844,50 @@ function renderContactsPage() {
       <td style="color:var(--ink);font-weight:400">${c.name||'—'}</td>
       <td>${c.phone||'—'}</td>
       <td>${c.email||'—'}</td>
-      <td><button class="btn" onclick="createDealForContact('${String(c.id)}')">Сделка</button></td>
+      <td style="display:flex;gap:6px;">
+        <button class="tiny-btn" onclick="openContactEditModal('${String(c.id)}')">✏️ Изменить</button>
+        <button class="btn" onclick="createDealForContact('${String(c.id)}')">Сделка</button>
+      </td>
     </tr>
   `).join('') || '<tr><td colspan="4" style="text-align:center;color:#ccc;padding:32px;font-size:12px">Контактов нет</td></tr>';
 }
 function filterContacts(val) { contactsFilter = val||''; renderContactsPage(); }
+
+let currentEditingContactId = null;
+
+function openContactEditModal(contactId) {
+  const c = contacts.find(x=>String(x.id)===String(contactId));
+  if (!c) return;
+  currentEditingContactId = contactId;
+  document.getElementById('fce-name').value = c.name||'';
+  document.getElementById('fce-phone').value = c.phone||'';
+  document.getElementById('fce-email').value = c.email||'';
+  document.getElementById('modal-contact-edit').classList.add('open');
+}
+
+function saveContactEdit() {
+  const name = document.getElementById('fce-name').value.trim();
+  if (!name) { showToast('⚠️ Укажите имя'); return; }
+  const phone = document.getElementById('fce-phone').value.trim();
+  const email = document.getElementById('fce-email').value.trim();
+  const c = contacts.find(x=>String(x.id)===String(currentEditingContactId));
+  if (!c) return;
+  c.name = name; c.phone = phone; c.email = email;
+  persistContacts(); renderContactsSelect(); renderContactsPage();
+  closeModal('modal-contact-edit');
+  showToast('✅ Контакт обновлён');
+}
+
+function deleteCurrentContact() {
+  if (!currentEditingContactId) return;
+  const c = contacts.find(x=>String(x.id)===String(currentEditingContactId));
+  if (!c) return;
+  if (!confirm(`Удалить контакт «${c.name}»?`)) return;
+  contacts = contacts.filter(x=>String(x.id)!==String(currentEditingContactId));
+  persistContacts(); renderContactsSelect(); renderContactsPage();
+  closeModal('modal-contact-edit');
+  showToast('✅ Контакт удалён');
+}
 function createDealForContact(contactId) {
   openDealModal();
   const c = contacts.find(x=>String(x.id)===String(contactId));
@@ -1853,6 +1908,10 @@ function resetDealModalState() {
   document.getElementById('f-contact-select').value = '';
   currentEditingDealId = null;
   document.getElementById('deal-delete-btn').style.display = 'none';
+  const dateGroup = document.getElementById('f-date-group');
+  if (dateGroup) dateGroup.style.display = isAdmin() ? 'block' : 'none';
+  const dateInput = document.getElementById('f-date');
+  if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 }
 
 function openDealModal() { resetDealModalState(); document.getElementById('modal-deal').classList.add('open'); }
@@ -1924,6 +1983,7 @@ function closeModal(id) {
   if (id === 'modal-equip') currentEditingEquipmentId = null;
   if (id === 'modal-maintenance') currentEditingMaintenanceId = null;
   if (id === 'modal-service') currentEditingServiceIdx = null;
+  if (id === 'modal-contact-edit') currentEditingContactId = null;
 }
 
 document.querySelectorAll('.modal-overlay').forEach(m => {
@@ -1953,6 +2013,10 @@ function openDealDetails(dealId) {
   document.getElementById('deal-save-btn').textContent = 'Сохранить';
   document.getElementById('deal-save-btn').setAttribute('onclick', `updateDeal(${dealId})`);
   document.getElementById('deal-delete-btn').style.display = isAdmin() ? 'block' : 'none';
+  const dateGroup = document.getElementById('f-date-group');
+  if (dateGroup) dateGroup.style.display = isAdmin() ? 'block' : 'none';
+  const dateInput = document.getElementById('f-date');
+  if (dateInput) dateInput.value = deal.date || new Date().toISOString().split('T')[0];
   currentEditingDealId = dealId;
   document.getElementById('modal-deal').classList.add('open');
 }
@@ -2082,7 +2146,10 @@ async function saveDeal() {
   const title  = document.getElementById('f-title').value.trim();
   saveContactSilentlyFromDealForm();
   if (!client||!title) { alert('Заполните клиента и название'); return; }
-  const res = await apiFetch('/deals', { method:'POST', body:JSON.stringify({ title, client, notes: document.getElementById('f-notes').value, address: document.getElementById('f-address').value, vat_rate: document.getElementById('f-vat').value, services: getSelectedServices(), total: parseFloat(document.getElementById('f-sum').value)||0 }) });
+  const dateVal = document.getElementById('f-date')?.value || new Date().toISOString().split('T')[0];
+  const payload = { title, client, notes: document.getElementById('f-notes').value, address: document.getElementById('f-address').value, vat_rate: document.getElementById('f-vat').value, services: getSelectedServices(), total: parseFloat(document.getElementById('f-sum').value)||0 };
+  if (isAdmin()) payload.date = dateVal;
+  const res = await apiFetch('/deals', { method:'POST', body:JSON.stringify(payload) });
   if (!res) return;
   closeModal('modal-deal'); await loadAll(); showToast('✅ Сделка создана');
 }
@@ -2091,7 +2158,10 @@ async function updateDeal(dealId) {
   const title  = document.getElementById('f-title').value.trim();
   saveContactSilentlyFromDealForm();
   if (!client||!title) { alert('Заполните клиента и название'); return; }
-  const res = await apiFetch(`/deals/${dealId}`, { method:'PUT', body:JSON.stringify({ title, client, notes: document.getElementById('f-notes').value, address: document.getElementById('f-address').value, vat_rate: document.getElementById('f-vat').value, services: getSelectedServices(), total: parseFloat(document.getElementById('f-sum').value)||0 }) });
+  const dateVal = document.getElementById('f-date')?.value || new Date().toISOString().split('T')[0];
+  const payload = { title, client, notes: document.getElementById('f-notes').value, address: document.getElementById('f-address').value, vat_rate: document.getElementById('f-vat').value, services: getSelectedServices(), total: parseFloat(document.getElementById('f-sum').value)||0 };
+  if (isAdmin()) payload.date = dateVal;
+  const res = await apiFetch(`/deals/${dealId}`, { method:'PUT', body:JSON.stringify(payload) });
   if (!res) return;
   closeModal('modal-deal'); await loadAll(); showToast('✅ Сделка обновлена');
 }
