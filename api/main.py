@@ -1,11 +1,3 @@
-from fastapi import FastAPI
-from a2wsgi import ASGIMiddleware
-# ... остальные ваши импорты
-
-# Блок для локального запуска через uvicorn (не влияет на Passenger)
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host='0.0.0.0', port=8000)
 """
 FastAPI REST API для CRM
 Запуск: uvicorn api.main:app --reload --port 8000
@@ -22,7 +14,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from pydantic import BaseModel
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session as DBSession
@@ -190,6 +182,31 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Убираем жёсткий CSP, который Apache/Passenger могут добавлять
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
+
+class PermissiveCSPMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: StarletteRequest, call_next):
+        response = await call_next(request)
+        response.headers["Content-Security-Policy"] = (
+            "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
+        )
+        return response
+
+app.add_middleware(PermissiveCSPMiddleware)
+
+
+# Отдаём crm.html по корневому пути — чтобы Apache не перехватывал
+@app.get("/", include_in_schema=False)
+@app.get("/crm.html", include_in_schema=False)
+async def serve_crm():
+    import os
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'crm.html')
+    if not os.path.exists(path):
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'crm.html')
+    return FileResponse(path, media_type='text/html')
 
 
 def get_db():
@@ -814,8 +831,9 @@ def telegram_test():
     ok = tg_send(report)
     return {"sent": ok, "preview": report[:300] + "..."}
 
-python
 
+# ── WSGI для Passenger (shared хостинг) ──────────────────────
+from a2wsgi import ASGIMiddleware
 application = ASGIMiddleware(app)
 
 if __name__ == "__main__":
