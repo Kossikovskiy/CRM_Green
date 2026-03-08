@@ -1834,7 +1834,13 @@ html[data-theme="dark"] .cal-event.ev-deal{background:rgba(74,124,63,.3);color:v
                     <tbody></tbody>
                 </table>
             </div>
-            <button class="btn-sec" style="width:100%" onclick="openItemSelectorModal('consumable')">＋ Добавить расходник</button>
+            <!-- Инлайн поиск расходников -->
+            <div style="position:relative">
+                <input type="text" id="m-consumable-search" placeholder="＋ Добавить расходник — начните вводить название…"
+                    oninput="renderConsumableDropdown()" onfocus="renderConsumableDropdown()"
+                    style="width:100%;font-size:13px;padding:9px 12px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--ink);box-sizing:border-box">
+                <div id="m-consumable-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--bg);border:1px solid var(--border);border-radius:8px;box-shadow:var(--sh-l);max-height:200px;overflow-y:auto;z-index:600"></div>
+            </div>
         </div>
         <div class="modal-grid" style="margin-top:20px;">
             <div class="field full">
@@ -1961,13 +1967,13 @@ html[data-theme="dark"] .cal-event.ev-deal{background:rgba(74,124,63,.3);color:v
         <div class="svc-stat"><div class="svc-stat-val" id="svc-active-deals" style="font-size:16px">—</div><div class="svc-stat-lbl">Активных сделок</div></div>
         <div class="svc-stat"><div class="svc-stat-val" id="svc-overdue" style="font-size:16px;color:#f87171">—</div><div class="svc-stat-lbl">Просрочено</div></div>
       </div>
-      <button class=\"svc-btn success\" onclick=\"svcDbCheck()\"><span class=\"svc-btn-icon\">🔌</span> Проверить соединение</button>
-      <div class=\"svc-result\" id=\"svc-db-result\"></div>
-      <div style=\"margin-top:10px;font-size:11px;color:var(--ink4);display:flex;align-items:center;gap:6px\">
-        <span>💾</span><span>Последний бэкап: <span id=\"svc-last-backup\" style=\"color:var(--ink2);font-weight:500\">—</span></span>
+      <button class="svc-btn success" onclick="svcDbCheck()"><span class="svc-btn-icon">🔌</span> Проверить соединение</button>
+      <div class="svc-result" id="svc-db-result"></div>
+      <div style="margin-top:10px;font-size:11px;color:var(--ink4);display:flex;align-items:center;gap:6px">
+        <span>💾</span><span>Последний бэкап: <span id="svc-last-backup" style="color:var(--ink2);font-weight:500">—</span></span>
       </div>
-      <button class=\"svc-btn\" style=\"margin-top:10px\" onclick=\"svcBackupNow(this)\"><span class=\"svc-btn-icon\">💾</span> Создать бэкап сейчас</button>
-      <div class=\"svc-result\" id=\"svc-backup-result\"></div>
+      <button class="svc-btn" style="margin-top:10px" onclick="svcBackupNow(this)"><span class="svc-btn-icon">💾</span> Создать бэкап сейчас</button>
+      <div class="svc-result" id="svc-backup-result"></div>
     </div>
 
     <!-- Кэш -->
@@ -1984,6 +1990,19 @@ html[data-theme="dark"] .cal-event.ev-deal{background:rgba(74,124,63,.3);color:v
       <div class="svc-card-title"><span>✈️</span> Telegram</div>
       <div style="margin-bottom:12px;font-size:12px;color:var(--ink3)">
         <span class="svc-status-dot" id="svc-tg-dot"></span><span id="svc-tg-status">проверка…</span>
+      </div>
+      <!-- Автоотправка -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px">
+        <span style="font-size:12px;color:var(--ink2)">Ежедневный отчёт</span>
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="svc-tg-auto-toggle" onchange="svcSaveSchedule()" style="width:16px;height:16px;accent-color:var(--sage);cursor:pointer">
+          <span id="svc-tg-auto-label" style="font-size:11px;color:var(--ink3)">выкл</span>
+        </label>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:12px;color:var(--ink3)">Время:</span>
+        <input type="time" id="svc-tg-time-input" value="18:00" onchange="svcSaveSchedule()"
+          style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--ink);width:100px">
       </div>
       <button class="svc-btn success" onclick="svcSendReport(this)"><span class="svc-btn-icon">📊</span> Отправить отчёт сейчас</button>
       <div class="svc-result" id="svc-tg-result"></div>
@@ -3100,6 +3119,11 @@ async function openMaintenanceModal(mId = null) {
     renderMaintenanceConsumables();
     saveBtn.onclick = saveMaintenance;
     overlay.classList.add('open');
+    // Сбрасываем поиск расходников
+    const srch = document.getElementById('m-consumable-search');
+    const dd = document.getElementById('m-consumable-dropdown');
+    if (srch) srch.value = '';
+    if (dd) dd.style.display = 'none';
     setTimeout(() => document.getElementById('m-work').focus(), 100);
 }
 
@@ -3107,6 +3131,41 @@ function closeMaintenanceModal() {
     document.getElementById('maintenance-modal').classList.remove('open');
     _currentMaintenanceId = null;
 }
+
+function renderConsumableDropdown() {
+    const input = document.getElementById('m-consumable-search');
+    const dropdown = document.getElementById('m-consumable-dropdown');
+    if (!input || !dropdown) return;
+    const q = input.value.toLowerCase().trim();
+    const filtered = (_consumables || []).filter(c => !q || c.name.toLowerCase().includes(q));
+    if (!filtered.length) { dropdown.style.display = 'none'; return; }
+    dropdown.innerHTML = filtered.map(c => {
+        const stockDisplay = c.unit === 'л' ? `${Math.round(c.stock_quantity * 1000)} мл` : `${c.stock_quantity} ${c.unit || ''}`;
+        return `<div onclick="selectConsumableFromDropdown(${c.id})"
+            style="padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border2)"
+            onmouseover="this.style.background='var(--bg2)'" onmouseout="this.style.background=''">
+            <span style="font-weight:500">${c.name}</span>
+            <span style="float:right;font-size:11px;color:var(--ink4)">склад: ${stockDisplay} · ${fmt(c.price)} ₽/${c.unit||'шт'}</span>
+        </div>`;
+    }).join('');
+    dropdown.style.display = 'block';
+}
+
+function selectConsumableFromDropdown(id) {
+    const c = (_consumables || []).find(x => x.id === id);
+    if (c) addMaintenanceConsumable(c);
+    const input = document.getElementById('m-consumable-search');
+    const dropdown = document.getElementById('m-consumable-dropdown');
+    if (input) input.value = '';
+    if (dropdown) dropdown.style.display = 'none';
+}
+
+// Закрываем дропдаун при клике вне него
+document.addEventListener('click', function(e) {
+    const dd = document.getElementById('m-consumable-dropdown');
+    const inp = document.getElementById('m-consumable-search');
+    if (dd && inp && !dd.contains(e.target) && e.target !== inp) dd.style.display = 'none';
+});
 
 function addMaintenanceConsumable(consumable) {
     const existingItem = _maintenanceItems.find(item => item.id === consumable.id);
@@ -4343,6 +4402,14 @@ async function svcLoad() {
     } else {
       dot.className = 'svc-status-dot red'; lbl.textContent = 'Не настроен (нет TELEGRAM_BOT_TOKEN / CHAT_ID)';
     }
+    // Расписание
+    try {
+      const sched = await api('/service/bot/schedule');
+      const tog = document.getElementById('svc-tg-auto-toggle');
+      const timeInp = document.getElementById('svc-tg-time-input');
+      if (tog) { tog.checked = sched.enabled; document.getElementById('svc-tg-auto-label').textContent = sched.enabled ? 'вкл' : 'выкл'; }
+      if (timeInp && sched.time) timeInp.value = sched.time;
+    } catch(e) {}
   } catch(e) { /* уже показан тост из api() */ }
 }
 
@@ -4352,6 +4419,17 @@ function svcShowResult(id, ok, msg) {
   el.className = 'svc-result ' + (ok ? 'ok' : 'err');
   el.textContent = (ok ? '✓ ' : '✗ ') + msg;
   setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+
+async function svcSaveSchedule() {
+  const tog = document.getElementById('svc-tg-auto-toggle');
+  const timeInp = document.getElementById('svc-tg-time-input');
+  const lbl = document.getElementById('svc-tg-auto-label');
+  if (lbl) lbl.textContent = tog.checked ? 'вкл' : 'выкл';
+  try {
+    await api('/service/bot/schedule', {method:'POST', body: JSON.stringify({enabled: tog.checked, time: timeInp.value})});
+    svcShowResult('svc-tg-result', true, `Расписание сохранено: ${tog.checked ? 'вкл, ' + timeInp.value : 'выкл'}`);
+  } catch(e) { svcShowResult('svc-tg-result', false, e.message); }
 }
 
 async function svcDbCheck() {

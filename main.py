@@ -1627,6 +1627,25 @@ def service_clear_cache(user: dict = Depends(get_current_user)):
     _cache._data.clear()
     return {"ok": True, "message": "Кэш полностью очищен"}
 
+# Расписание авто-отчёта (in-memory, сбрасывается при рестарте)
+_bot_schedule = {"enabled": False, "time": "18:00"}
+
+@app.get("/api/service/bot/schedule")
+def get_bot_schedule(user: dict = Depends(get_current_user)):
+    if not is_admin(user): raise HTTPException(403, "Admin only")
+    return _bot_schedule
+
+@app.post("/api/service/bot/schedule")
+async def set_bot_schedule(payload: dict, user: dict = Depends(get_current_user)):
+    if not is_admin(user): raise HTTPException(403, "Admin only")
+    import re as _re
+    t = payload.get("time", "18:00")
+    if not _re.match(r"^\d{1,2}:\d{2}$", t):
+        raise HTTPException(400, "Неверный формат времени (ЧЧ:ММ)")
+    _bot_schedule["enabled"] = bool(payload.get("enabled", False))
+    _bot_schedule["time"] = t
+    return {"ok": True, "enabled": _bot_schedule["enabled"], "time": _bot_schedule["time"]}
+
 @app.post("/api/service/bot/report")
 async def service_send_report(db: DBSession = Depends(get_db), user: dict = Depends(get_current_user)):
     if not is_admin(user): raise HTTPException(403, "Admin only")
