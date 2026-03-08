@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import requests
+import httpx
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, joinedload, contains_eager
 
@@ -222,12 +223,13 @@ async def get_deal_address(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def fetch_services_if_needed(context: ContextTypes.DEFAULT_TYPE) -> bool:
     if 'services_list' not in context.user_data:
         try:
-            response = requests.get(f"{API_BASE_URL}/services", timeout=5, headers=API_HEADERS)
-            response.raise_for_status()
-            services = response.json()
+            async with httpx.AsyncClient(timeout=5) as client:
+                response = await client.get(f"{API_BASE_URL}/services", headers=API_HEADERS)
+                response.raise_for_status()
+                services = response.json()
             context.user_data['services_list'] = {s['id']: s for s in services}
             return True
-        except requests.RequestException as e:
+        except Exception as e:
             logger.error(f"Ошибка при запросе услуг из API: {e}")
             return False
     return True
@@ -367,18 +369,34 @@ async def create_deal_in_api(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=context.user_data['main_dialog_message_id'], text="Нет данных для создания сделки. /newdeal для старта.")
         return ConversationHandler.END
 
+    # Получаем первую стадию
     try:
-        response = requests.get(f"{API_BASE_URL}/stages", timeout=5, headers=API_HEADERS)
-        response.raise_for_status()
-        stage_id = response.json()[0]['id']
-    except (requests.RequestException, IndexError, KeyError) as e:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"{API_BASE_URL}/stages", headers=API_HEADERS)
+            r.raise_for_status()
+            stage_id = r.json()[0]['id']
+    except Exception as e:
         logger.error(f"Не удалось получить ID начального этапа: {e}")
         await context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=context.user_data['main_dialog_message_id'], text="Ошибка: не удалось определить начальный этап для сделки.")
         return ConversationHandler.END
 
+    # Определяем имя менеджера: сначала ищем CRM-пользователя по Telegram ID
+    tg_uid = str(update.effective_user.id)
+    manager_name = update.effective_user.full_name
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"{API_BASE_URL}/users/by-telegram/{tg_uid}", headers=API_HEADERS)
+            if r.status_code == 200:
+                crm_user = r.json()
+                manager_name = crm_user.get("name") or manager_name
+    except Exception as e:
+        logger.warning(f"Не удалось получить CRM-пользователя по Telegram ID: {e}")
+
     payload = {
-        "title": deal_data['title'], "new_contact_name": deal_data['client_name'],
-        "stage_id": stage_id, "manager": update.effective_user.full_name,
+        "title": deal_data['title'],
+        "new_contact_name": deal_data['client_name'],
+        "stage_id": stage_id,
+        "manager": manager_name,
         "services": [{'service_id': s['service_id'], 'quantity': s['quantity']} for s in deal_data['services']],
         "work_date": deal_data.get('work_date'),
         "work_time": deal_data.get('work_time'),
@@ -386,37 +404,62 @@ async def create_deal_in_api(update: Update, context: ContextTypes.DEFAULT_TYPE)
     }
 
     try:
-        response = requests.post(f"{API_BASE_URL}/deals", json=payload, timeout=10, headers=API_HEADERS)
-        response.raise_for_status()
+        async with httpx.AsyncClient(timeout=15) as client:
+            response = await client.post(f"{API_BASE_URL}/deals", json=payload, headers=API_HEADERS)
         
+        if response.status_code != 200:
+            error_text = ""
+            try:
+                error_text = response.json().get('detail', response.text[:200])
+            except Exception:
+                error_text = response.text[:200]
+            logger.error(f"API вернул {response.status_code}: {error_text}")
+            await context.bot.edit_message_text(
+                chat_id=update.effective_chat.id,
+                message_id=context.user_data['main_dialog_message_id'],
+                text=f"❌ <b>Не удалось создать сделку.</b>\nОшибка {response.status_code}: {html.escape(str(error_text))}",
+                parse_mode='HTML'
+            )
+            context.user_data.clear()
+            return ConversationHandler.END
+
         total_cost = sum(s.get('price', 0) * s.get('quantity', 0) for s in deal_data['services'])
         total_cost_str = f"{int(total_cost):,} ₽".replace(",", " ")
-        services_str = "\n".join([f"- {html.escape(s['name'])} (x{s['quantity']})" for s in deal_data['services']])
+        services_str = "\n".join([f"  · {html.escape(s['name'])} × {s['quantity']}" for s in deal_data['services']])
 
         extra_lines = ""
         if deal_data.get('work_date'):
             from datetime import datetime as _dt
             dt_disp = _dt.strptime(deal_data['work_date'], "%Y-%m-%d").strftime("%d.%m.%Y")
             time_str = deal_data.get('work_time', '')
-            extra_lines += f"\n<b>Дата выезда:</b> {dt_disp}" + (f" в {time_str}" if time_str else "")
+            extra_lines += f"\n📅 {dt_disp}" + (f" {time_str}" if time_str else "")
         if deal_data.get('address'):
-            extra_lines += f"\n<b>Адрес:</b> {html.escape(deal_data['address'])}"
+            extra_lines += f"\n📍 {html.escape(deal_data['address'])}"
 
         final_text = (
-            f"✅ <b>Сделка успешно создана!</b>\n\n"
-            f"<b>Клиент:</b> {html.escape(deal_data['client_name'])}\n"
-            f"<b>Название:</b> {html.escape(deal_data['title'])}"
-            f"{extra_lines}\n"
+            f"✅ <b>Сделка создана!</b>\n\n"
+            f"👤 <b>Клиент:</b> {html.escape(deal_data['client_name'])}\n"
+            f"📋 <b>Название:</b> {html.escape(deal_data['title'])}"
+            f"{extra_lines}\n\n"
             f"<b>Услуги:</b>\n{services_str}\n\n"
-            f"<b>Итоговая стоимость: {total_cost_str}</b>"
+            f"💰 <b>Итого: {total_cost_str}</b>\n"
+            f"👷 <b>Менеджер:</b> {html.escape(manager_name)}"
         )
-        await context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=context.user_data['main_dialog_message_id'], text=final_text, parse_mode='HTML')
-            
-    except requests.RequestException as e:
-        error_details = str(e)
-        if e.response is not None: error_details = e.response.json().get('detail', e.response.text)
-        logger.error(f"Ошибка API при создании сделки: {error_details}")
-        await context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=context.user_data['main_dialog_message_id'], text=f"❌ <b>Не удалось создать сделку.</b>\nОшибка сервера: {html.escape(error_details)}")
+        await context.bot.edit_message_text(
+            chat_id=update.effective_chat.id,
+            message_id=context.user_data['main_dialog_message_id'],
+            text=final_text,
+            parse_mode='HTML'
+        )
+
+    except httpx.RequestError as e:
+        logger.error(f"Сетевая ошибка при создании сделки: {e}")
+        await context.bot.edit_message_text(
+            chat_id=update.effective_chat.id,
+            message_id=context.user_data['main_dialog_message_id'],
+            text=f"❌ <b>Сетевая ошибка.</b>\n{html.escape(str(e))}",
+            parse_mode='HTML'
+        )
     finally:
         context.user_data.clear()
         return ConversationHandler.END

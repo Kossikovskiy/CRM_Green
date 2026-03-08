@@ -1961,11 +1961,13 @@ html[data-theme="dark"] .cal-event.ev-deal{background:rgba(74,124,63,.3);color:v
         <div class="svc-stat"><div class="svc-stat-val" id="svc-active-deals" style="font-size:16px">—</div><div class="svc-stat-lbl">Активных сделок</div></div>
         <div class="svc-stat"><div class="svc-stat-val" id="svc-overdue" style="font-size:16px;color:#f87171">—</div><div class="svc-stat-lbl">Просрочено</div></div>
       </div>
-      <button class="svc-btn success" onclick="svcDbCheck()"><span class="svc-btn-icon">🔌</span> Проверить соединение</button>
-      <div class="svc-result" id="svc-db-result"></div>
-      <div style="margin-top:10px;font-size:11px;color:var(--ink4);display:flex;align-items:center;gap:6px">
-        <span>💾</span><span>Последний бэкап: <span id="svc-last-backup" style="color:var(--ink2);font-weight:500">—</span></span>
+      <button class=\"svc-btn success\" onclick=\"svcDbCheck()\"><span class=\"svc-btn-icon\">🔌</span> Проверить соединение</button>
+      <div class=\"svc-result\" id=\"svc-db-result\"></div>
+      <div style=\"margin-top:10px;font-size:11px;color:var(--ink4);display:flex;align-items:center;gap:6px\">
+        <span>💾</span><span>Последний бэкап: <span id=\"svc-last-backup\" style=\"color:var(--ink2);font-weight:500\">—</span></span>
       </div>
+      <button class=\"svc-btn\" style=\"margin-top:10px\" onclick=\"svcBackupNow(this)\"><span class=\"svc-btn-icon\">💾</span> Создать бэкап сейчас</button>
+      <div class=\"svc-result\" id=\"svc-backup-result\"></div>
     </div>
 
     <!-- Кэш -->
@@ -4331,6 +4333,19 @@ async function svcDbCheck() {
     const d = await api('/service/db/check', {method:'POST'});
     svcShowResult('svc-db-result', true, d.detail || d.message);
   } catch(e) { svcShowResult('svc-db-result', false, e.message); }
+}
+
+async function svcBackupNow(btnEl) {
+  if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Создаю бэкап…'; }
+  try {
+    const d = await api('/service/backup', {method:'POST'});
+    svcShowResult('svc-backup-result', true, d.message);
+    setTimeout(svcLoad, 600); // обновляем дату последнего бэкапа
+  } catch(e) {
+    svcShowResult('svc-backup-result', false, e.message);
+  } finally {
+    if (btnEl) { btnEl.disabled = false; btnEl.innerHTML = '<span class="svc-btn-icon">💾</span> Создать бэкап сейчас'; }
+  }
 }
 
 async function svcClearCache() {

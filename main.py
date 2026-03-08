@@ -1577,7 +1577,7 @@ def service_status(db: DBSession = Depends(get_db), user: dict = Depends(get_cur
         import psutil
         mem = psutil.virtual_memory()
         disk = psutil.disk_usage("/")
-        cpu = psutil.cpu_percent(interval=0.3)
+        cpu = psutil.cpu_percent(interval=1.0)
         system_payload = {
             "cpu": round(cpu, 1),
             "mem_used_mb": round(mem.used / 1024**2),
@@ -1634,41 +1634,151 @@ async def service_send_report(db: DBSession = Depends(get_db), user: dict = Depe
     chat  = os.getenv("TELEGRAM_CHAT_ID")
     if not token or not chat:
         raise HTTPException(400, "TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID не заданы в .env")
+
     today = datetime.utcnow().date()
-    active_deals  = db.query(Deal).join(Stage).filter(Stage.is_final == False).count()
-    active_tasks  = db.query(Task).filter(Task.is_done == False).count()
-    overdue_tasks = db.query(Task).filter(Task.is_done == False, Task.due_date < today).count()
-    today_tasks   = db.query(Task).filter(Task.is_done == False, Task.due_date == today).count()
-    won_stages    = [s for s in db.query(Stage).all() if s.is_final and "успешно" in (s.name or "").lower()]
-    won_stage_ids = {s.id for s in won_stages}
-    # revenue по всем выигранным сделкам за текущий год (closed_at может не ставиться)
-    revenue_total = db.query(func.sum(Deal.total)).filter(
-        Deal.stage_id.in_(won_stage_ids),
-        extract("year", func.coalesce(Deal.closed_at, Deal.created_at)) == today.year
-    ).scalar() or 0
-    pipeline_total = db.query(func.sum(Deal.total)).join(Stage).filter(Stage.is_final == False).scalar() or 0
-    def fmt(n): return f"{int(n):,}".replace(",", " ")
-    lines = [
-        f"GrassCRM — отчёт за {today.strftime('%d.%m.%Y')}",
-        "",
-        f"Активных сделок: {active_deals}",
-        f"Воронка (сумма): {fmt(pipeline_total)} руб.",
-        f"Выручка за {today.year} г.: {fmt(revenue_total)} руб.",
-        f"Открытых задач: {active_tasks}",
-    ]
-    if overdue_tasks:
-        lines.append(f"Просрочено задач: {overdue_tasks}")
+    lines = []
+
+    # ── Заголовок
+    lines.append(f"🌿 GrassCRM — отчёт за {today.strftime('%d.%m.%Y')}")
+    lines.append("")
+
+    # ── Сделки в работе
+    active_deals = (
+        db.query(Deal)
+        .join(Stage)
+        .filter(Stage.is_final == False)
+        .options(joinedload(Deal.contact), joinedload(Deal.stage))
+        .order_by(Stage.order, Deal.created_at.desc())
+        .all()
+    )
+    if active_deals:
+        lines.append("📋 Сделки в работе:")
+        current_stage = None
+        for deal in active_deals:
+            stage_name = deal.stage.name if deal.stage else "Без стадии"
+            if stage_name != current_stage:
+                current_stage = stage_name
+                lines.append(f"\n  ▸ {stage_name}")
+            client = deal.contact.name if deal.contact else "Без клиента"
+            total = f"{int(deal.total or 0):,}".replace(",", " ")
+            lines.append(f"    · {deal.title} ({client}) — {total} руб.")
+            if deal.deal_date:
+                lines.append(f"      📅 {deal.deal_date.strftime('%d.%m.%Y %H:%M')}")
+            if deal.address:
+                lines.append(f"      📍 {deal.address}")
+    else:
+        lines.append("📋 Активных сделок нет.")
+
+    lines.append("")
+
+    # ── Задачи
+    today_tasks = (
+        db.query(Task)
+        .filter(Task.is_done == False, Task.due_date == today)
+        .all()
+    )
+    overdue_tasks = (
+        db.query(Task)
+        .filter(Task.is_done == False, Task.due_date < today)
+        .order_by(Task.due_date)
+        .all()
+    )
+
     if today_tasks:
-        lines.append(f"На сегодня: {today_tasks}")
-    text = "\n".join(lines)
+        lines.append("✅ Задачи на сегодня:")
+        for t in today_tasks:
+            lines.append(f"    · {t.title}")
+        lines.append("")
+
+    if overdue_tasks:
+        lines.append(f"⚠️ Просрочено ({len(overdue_tasks)}):")
+        for t in overdue_tasks[:5]:
+            due = t.due_date.strftime("%d.%m") if t.due_date else "—"
+            lines.append(f"    · {t.title} (до {due})")
+        if len(overdue_tasks) > 5:
+            lines.append(f"    ...и ещё {len(overdue_tasks) - 5}")
+        lines.append("")
+
+    if not today_tasks and not overdue_tasks:
+        lines.append("✅ Задач на сегодня нет.")
+        lines.append("")
+
+    # ── Цитата
+    try:
+        row = db.execute(text("SELECT phrase FROM daily_phrases ORDER BY RANDOM() LIMIT 1")).fetchone()
+        if row:
+            phrase = row[0].replace("\\n", "\n")
+            lines.append("· · · · · · · · · ·")
+            lines.append(phrase)
+    except Exception:
+        pass
+
+    msg_text = "\n".join(lines)
     async with httpx.AsyncClient(timeout=10) as client:
         r = await client.post(
             f"https://api.telegram.org/bot{token}/sendMessage",
-            json={"chat_id": chat, "text": text}
+            json={"chat_id": chat, "text": msg_text}
         )
         if not r.is_success:
             raise HTTPException(500, f"Telegram ошибка {r.status_code}: {r.text[:200]}")
     return {"ok": True, "message": "Отчёт отправлен в Telegram"}
+
+@app.post("/api/service/backup")
+def service_backup(user: dict = Depends(get_current_user)):
+    if not is_admin(user): raise HTTPException(403, "Admin only")
+    import subprocess as _sp, glob as _glob, re as _re
+    db_url = os.getenv("DATABASE_URL", "")
+    m = _re.match(r"postgresql(?:\+\w+)?://([^:]+):([^@]+)@([^:/]+):?(\d+)?/(\S+)", db_url)
+    if not m:
+        raise HTTPException(500, "Не удалось разобрать DATABASE_URL")
+    db_user, db_pass, db_host, db_port, db_name = m.group(1), m.group(2), m.group(3), m.group(4) or "5432", m.group(5)
+    db_name = db_name.split("?")[0]
+
+    backup_dir = "/var/www/crm/GCRM-2/backups"
+    os.makedirs(backup_dir, exist_ok=True)
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    out_file = f"{backup_dir}/backup_{ts}.sql.gz"
+
+    # Ищем pg_dump подходящей версии (17 → 16 → системный)
+    pg_dump_cmd = None
+    for candidate in ["/usr/lib/postgresql/17/bin/pg_dump", "/usr/lib/postgresql/16/bin/pg_dump", "pg_dump"]:
+        try:
+            r = _sp.run([candidate, "--version"], capture_output=True, text=True, timeout=3)
+            if r.returncode == 0:
+                pg_dump_cmd = candidate
+                break
+        except FileNotFoundError:
+            continue
+    if not pg_dump_cmd:
+        raise HTTPException(500, "pg_dump не найден. Установите: apt install postgresql-client-17")
+
+    env = {**os.environ, "PGPASSWORD": db_pass}
+    try:
+        dump = _sp.Popen(
+            [pg_dump_cmd, "-h", db_host, "-p", db_port, "-U", db_user, "-d", db_name,
+             "--no-password", "-F", "p"],
+            stdout=_sp.PIPE, stderr=_sp.PIPE, env=env
+        )
+        with open(out_file, "wb") as f_out:
+            gzip_proc = _sp.Popen(["gzip", "-c"], stdin=dump.stdout, stdout=f_out, stderr=_sp.PIPE)
+        dump.stdout.close()
+        _, dump_err = dump.communicate(timeout=120)
+        gzip_proc.communicate(timeout=30)
+        if dump.returncode != 0:
+            if os.path.exists(out_file): os.remove(out_file)
+            raise HTTPException(500, f"pg_dump ошибка: {dump_err.decode()[:300]}")
+    except _sp.TimeoutExpired:
+        raise HTTPException(500, "pg_dump timeout (120s)")
+
+    # Оставляем последние 10 бэкапов
+    all_backups = sorted(_glob.glob(f"{backup_dir}/backup_*.sql.gz"))
+    for old in all_backups[:-10]:
+        try: os.remove(old)
+        except: pass
+
+    size_kb = round(os.path.getsize(out_file) / 1024, 1)
+    return {"ok": True, "message": f"Бэкап создан: backup_{ts}.sql.gz ({size_kb} КБ)"}
+
 
 @app.post("/api/service/db/check")
 def service_db_check(db: DBSession = Depends(get_db), user: dict = Depends(get_current_user)):
@@ -1705,4 +1815,4 @@ async def serve_frontend(full_path: str):
     path = f"./{full_path.strip()}" if full_path else "./index.html"
     return FileResponse(path if os.path.isfile(path) else "./index.html")
 
-print(f"main.py (v13.0) loaded — analytics, export, budget added.", flush=True)
+print(f"main.py (v14.0) loaded — backup, cpu fix, analytics.", flush=True)
