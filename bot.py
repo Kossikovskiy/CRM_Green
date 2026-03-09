@@ -11,6 +11,8 @@ import html
 import logging
 import os
 import sys
+import re
+import tempfile
 from datetime import date, timedelta, time
 import pytz
 
@@ -54,6 +56,8 @@ TG_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TG_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 API_BASE_URL = "http://127.0.0.1:8000/api"
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
 if not INTERNAL_API_KEY:
     logger.critical("Переменная окружения INTERNAL_API_KEY не установлена!")
@@ -61,10 +65,10 @@ if not INTERNAL_API_KEY:
 API_HEADERS = {"X-Internal-API-Key": INTERNAL_API_KEY}
 
 # Состояния для диалога создания сделки
-(GET_TITLE, GET_CLIENT, GET_DATE, GET_TIME, GET_ADDRESS, CHOOSE_CATEGORY, CHOOSE_SERVICE, GET_QUANTITY, ADD_MORE) = range(9)
+(GET_TITLE, GET_CLIENT, PICK_CONTACT, CHOOSE_CATEGORY, CHOOSE_SERVICE, GET_QUANTITY, ADD_MORE) = range(7)
 
 # Состояния для диалога расхода
-(EXP_CHOOSE_CATEGORY, EXP_GET_NAME, EXP_GET_AMOUNT) = range(9, 12)
+(EXP_CHOOSE_CATEGORY, EXP_GET_NAME, EXP_GET_AMOUNT) = range(7, 10)
 
 SERVICE_CATEGORIES = {
     "🌿 Покос травы": list(range(1, 7)),
@@ -102,13 +106,16 @@ async def cleanup_temp_messages(context: ContextTypes.DEFAULT_TYPE, chat_id: int
 # ════════════════════════════════════════
 
 async def new_deal_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    last_id = context.user_data.get('last_created_deal_id')
     context.user_data.clear()
+    if last_id:
+        context.user_data['last_created_deal_id'] = last_id
     context.user_data['deal_data'] = {'services': []}
     add_message_to_cleanup(context, update.message.message_id)
     
     sent_message = await update.message.reply_text(
         "Начинаем создание новой сделки...\n\n"
-        "<b>Шаг 1/6:</b> Введите название сделки.",
+        "<b>Шаг 1/3:</b> Введите название сделки.",
         parse_mode='HTML'
     )
     # Это сообщение станет основным, его не удаляем, а запоминаем
@@ -132,7 +139,7 @@ async def get_deal_title(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         chat_id=update.effective_chat.id,
         message_id=context.user_data['main_dialog_message_id'],
         text=f"Название сделки: <b>{html.escape(deal_title)}</b>.\n\n"
-             "<b>Шаг 2/6:</b> Теперь введите имя клиента.",
+             "<b>Шаг 2/3:</b> Теперь введите имя контакта.",
         parse_mode='HTML'
     )
     return GET_CLIENT
@@ -145,78 +152,100 @@ async def get_client_name(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         await context.bot.edit_message_text(
             chat_id=update.effective_chat.id,
             message_id=context.user_data['main_dialog_message_id'],
-            text="Имя клиента не может быть пустым. Попробуйте снова."
+            text="Имя контакта не может быть пустым. Попробуйте снова."
         )
         return GET_CLIENT
 
-    context.user_data['deal_data']['client_name'] = client_name
+    deal_data = context.user_data['deal_data']
+    deal_data['client_name'] = client_name
 
+    normalized_name = " ".join(client_name.lower().split())
+    found_exact_contact = None
+    suggested_contacts = []
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(f"{API_BASE_URL}/contacts", headers=API_HEADERS)
+            response.raise_for_status()
+            contacts = response.json()
+        for contact in contacts:
+            contact_name = (contact.get('name') or '').strip()
+            normalized_contact_name = " ".join(contact_name.lower().split())
+            if normalized_contact_name == normalized_name:
+                found_exact_contact = contact
+                break
+            if normalized_name and normalized_name in normalized_contact_name:
+                suggested_contacts.append(contact)
+    except Exception as e:
+        logger.warning(f"Не удалось проверить контакт в CRM: {e}")
+
+    if found_exact_contact:
+        deal_data['contact_id'] = found_exact_contact.get('id')
+        deal_data['contact_name'] = found_exact_contact.get('name') or client_name
+        await context.bot.edit_message_text(
+            chat_id=update.effective_chat.id,
+            message_id=context.user_data['main_dialog_message_id'],
+            text=f"Контакт найден: <b>{html.escape(deal_data['contact_name'])}</b>.\n\n<b>Шаг 3/3:</b> Выберите категорию услуг.",
+            parse_mode='HTML'
+        )
+        return await show_category_keyboard(update, context)
+
+    if suggested_contacts:
+        context.user_data['suggested_contacts'] = {str(c['id']): c for c in suggested_contacts[:5]}
+        context.user_data['pending_contact_name'] = client_name
+        keyboard = [
+            [InlineKeyboardButton(f"👤 {c['name']}", callback_data=f"pick_contact_{c['id']}")]
+            for c in suggested_contacts[:5]
+        ]
+        keyboard.append([InlineKeyboardButton(f"➕ Создать новый: {client_name}", callback_data="pick_contact_new")])
+        keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="cancel_deal")])
+        await context.bot.edit_message_text(
+            chat_id=update.effective_chat.id,
+            message_id=context.user_data['main_dialog_message_id'],
+            text="Нашел похожие контакты. Выберите существующий или создайте новый:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return PICK_CONTACT
+
+    deal_data['new_contact_name'] = client_name
+    deal_data['contact_name'] = client_name
     await context.bot.edit_message_text(
         chat_id=update.effective_chat.id,
         message_id=context.user_data['main_dialog_message_id'],
-        text=f"Клиент: <b>{html.escape(client_name)}</b>.\n\n"
-             "<b>Шаг 3/8:</b> Введите дату выезда в формате <b>ДД.ММ.ГГГГ</b>\n"
-             "или напишите <b>-</b> чтобы пропустить.",
+        text=f"Создам новый контакт: <b>{html.escape(client_name)}</b>.\n\n<b>Шаг 3/3:</b> Выберите категорию услуг.",
         parse_mode='HTML'
     )
-    return GET_DATE
+    return await show_category_keyboard(update, context)
 
-async def get_deal_date(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
-    add_message_to_cleanup(context, update.message.message_id)
-    if text != '-':
-        from datetime import datetime as _dt
-        try:
-            context.user_data['deal_data']['work_date'] = _dt.strptime(text, "%d.%m.%Y").strftime("%Y-%m-%d")
-        except ValueError:
-            await context.bot.edit_message_text(
-                chat_id=update.effective_chat.id,
-                message_id=context.user_data['main_dialog_message_id'],
-                text="Неверный формат. Введите дату как <b>ДД.ММ.ГГГГ</b> (например, 25.07.2025)\n"
-                     "или <b>-</b> чтобы пропустить.",
-                parse_mode='HTML'
-            )
-            return GET_DATE
-    await context.bot.edit_message_text(
-        chat_id=update.effective_chat.id,
-        message_id=context.user_data['main_dialog_message_id'],
-        text="<b>Шаг 4/8:</b> Введите время выезда в формате <b>ЧЧ:ММ</b> (например, 09:00)\n"
-             "или напишите <b>-</b> чтобы пропустить.",
+
+async def pick_contact_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    deal_data = context.user_data.get('deal_data', {})
+
+    if query.data == "pick_contact_new":
+        name = context.user_data.get('pending_contact_name') or deal_data.get('client_name') or ''
+        deal_data['new_contact_name'] = name
+        deal_data['contact_name'] = name
+        deal_data.pop('contact_id', None)
+        await query.edit_message_text(
+            text=f"Создам новый контакт: <b>{html.escape(name)}</b>.\n\n<b>Шаг 3/3:</b> Выберите категорию услуг.",
+            parse_mode='HTML'
+        )
+        return await show_category_keyboard(update, context)
+
+    contact_id = query.data.split("pick_contact_", 1)[1]
+    contact = context.user_data.get('suggested_contacts', {}).get(contact_id)
+    if not contact:
+        await query.edit_message_text("Не удалось найти контакт, введите имя снова.")
+        return GET_CLIENT
+
+    deal_data['contact_id'] = contact.get('id')
+    deal_data['contact_name'] = contact.get('name')
+    deal_data.pop('new_contact_name', None)
+    await query.edit_message_text(
+        text=f"Выбран контакт: <b>{html.escape(deal_data['contact_name'])}</b>.\n\n<b>Шаг 3/3:</b> Выберите категорию услуг.",
         parse_mode='HTML'
     )
-    return GET_TIME
-
-
-async def get_deal_time(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
-    add_message_to_cleanup(context, update.message.message_id)
-    if text != '-':
-        import re
-        if not re.match(r'^\d{1,2}:\d{2}$', text):
-            await context.bot.edit_message_text(
-                chat_id=update.effective_chat.id,
-                message_id=context.user_data['main_dialog_message_id'],
-                text="Неверный формат. Введите время как <b>ЧЧ:ММ</b> (например, 09:00)\n"
-                     "или <b>-</b> чтобы пропустить.",
-                parse_mode='HTML'
-            )
-            return GET_TIME
-        context.user_data['deal_data']['work_time'] = text
-    await context.bot.edit_message_text(
-        chat_id=update.effective_chat.id,
-        message_id=context.user_data['main_dialog_message_id'],
-        text="<b>Шаг 5/8:</b> Введите адрес объекта\n"
-             "или напишите <b>-</b> чтобы пропустить.",
-        parse_mode='HTML'
-    )
-    return GET_ADDRESS
-
-
-async def get_deal_address(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    text = update.message.text.strip()
-    add_message_to_cleanup(context, update.message.message_id)
-    if text != '-':
-        context.user_data['deal_data']['address'] = text
     return await show_category_keyboard(update, context)
 
 
@@ -248,7 +277,7 @@ async def show_category_keyboard(update: Update, context: ContextTypes.DEFAULT_T
     keyboard.append([InlineKeyboardButton("❌ Отмена", callback_data="cancel_deal")])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
-    message_text = f"<b>Шаг 6/8:</b> Выберите категорию услуг:"
+    message_text = f"<b>Шаг 3/3:</b> Выберите категорию услуг:"
 
     await context.bot.edit_message_text(
         chat_id=update.effective_chat.id,
@@ -280,7 +309,7 @@ async def show_services_keyboard(update: Update, context: ContextTypes.DEFAULT_T
     keyboard = [[InlineKeyboardButton(f"{s['name']} ({s['price']} ₽)", callback_data=f"service_{s['id']}")] for s in services_to_show]
     keyboard.append([InlineKeyboardButton("🔙 Назад к категориям", callback_data="back_to_cat")])
     reply_markup = InlineKeyboardMarkup(keyboard)
-    message_text = f"<b>Категория: {html.escape(category_name)}</b>\n\n<b>Шаг 7/8:</b> Выберите услугу:"
+    message_text = f"<b>Категория: {html.escape(category_name)}</b>\n\nВыберите услугу:"
     
     await query.edit_message_text(message_text, reply_markup=reply_markup, parse_mode='HTML')
     return CHOOSE_SERVICE
@@ -297,7 +326,7 @@ async def choose_service_callback(update: Update, context: ContextTypes.DEFAULT_
     context.user_data['current_service_name'] = service_name
     
     await query.edit_message_text(
-        text=f"Выбрана услуга: <b>{html.escape(service_name)}</b>.\n\n<b>Шаг 7/8:</b> Введите количество (например: 1, 5, 1.5).",
+        text=f"Выбрана услуга: <b>{html.escape(service_name)}</b>.\n\nВведите количество (например: 1, 5, 1.5).",
         parse_mode='HTML',
         reply_markup=None
     )
@@ -336,7 +365,7 @@ async def get_quantity(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     await context.bot.edit_message_text(
         chat_id=update.effective_chat.id,
         message_id=main_msg_id,
-        text=f"Услуга <b>'{html.escape(context.user_data['current_service_name'])}'</b> x{quantity} добавлена.\n\n<b>Шаг 8/8:</b> Добавить еще или завершить?",
+        text=f"Услуга <b>'{html.escape(context.user_data['current_service_name'])}'</b> x{quantity} добавлена.\n\nДобавить еще или завершить?",
         reply_markup=reply_markup, parse_mode='HTML'
     )
     return ADD_MORE
@@ -394,20 +423,18 @@ async def create_deal_in_api(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     payload = {
         "title": deal_data['title'],
-        "new_contact_name": deal_data['client_name'],
+        "contact_id": deal_data.get('contact_id'),
+        "new_contact_name": deal_data.get('new_contact_name'),
         "stage_id": stage_id,
         "manager": manager_name,
         "services": [{'service_id': s['service_id'], 'quantity': s['quantity']} for s in deal_data['services']],
-        "work_date": deal_data.get('work_date'),
-        "work_time": deal_data.get('work_time'),
-        "address": deal_data.get('address'),
     }
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             response = await client.post(f"{API_BASE_URL}/deals", json=payload, headers=API_HEADERS)
         
-        if response.status_code != 200:
+        if response.status_code not in (200, 201):
             error_text = ""
             try:
                 error_text = response.json().get('detail', response.text[:200])
@@ -423,24 +450,22 @@ async def create_deal_in_api(update: Update, context: ContextTypes.DEFAULT_TYPE)
             context.user_data.clear()
             return ConversationHandler.END
 
+        try:
+            created = response.json() if response.text else {}
+            created_id = created.get('id')
+            if created_id:
+                context.user_data['last_created_deal_id'] = created_id
+        except Exception:
+            pass
+
         total_cost = sum(s.get('price', 0) * s.get('quantity', 0) for s in deal_data['services'])
         total_cost_str = f"{int(total_cost):,} ₽".replace(",", " ")
         services_str = "\n".join([f"  · {html.escape(s['name'])} × {s['quantity']}" for s in deal_data['services']])
 
-        extra_lines = ""
-        if deal_data.get('work_date'):
-            from datetime import datetime as _dt
-            dt_disp = _dt.strptime(deal_data['work_date'], "%Y-%m-%d").strftime("%d.%m.%Y")
-            time_str = deal_data.get('work_time', '')
-            extra_lines += f"\n📅 {dt_disp}" + (f" {time_str}" if time_str else "")
-        if deal_data.get('address'):
-            extra_lines += f"\n📍 {html.escape(deal_data['address'])}"
-
         final_text = (
             f"✅ <b>Сделка создана!</b>\n\n"
             f"👤 <b>Клиент:</b> {html.escape(deal_data['client_name'])}\n"
-            f"📋 <b>Название:</b> {html.escape(deal_data['title'])}"
-            f"{extra_lines}\n\n"
+            f"📋 <b>Название:</b> {html.escape(deal_data['title'])}\n\n"
             f"<b>Услуги:</b>\n{services_str}\n\n"
             f"💰 <b>Итого: {total_cost_str}</b>\n"
             f"👷 <b>Менеджер:</b> {html.escape(manager_name)}"
@@ -461,7 +486,10 @@ async def create_deal_in_api(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode='HTML'
         )
     finally:
+        last_id = context.user_data.get('last_created_deal_id')
         context.user_data.clear()
+        if last_id:
+            context.user_data['last_created_deal_id'] = last_id
         return ConversationHandler.END
 
 async def cancel_deal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -474,7 +502,10 @@ async def cancel_deal_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         text="Действие отменено.",
         reply_markup=None
     )
+    last_id = context.user_data.get('last_created_deal_id')
     context.user_data.clear()
+    if last_id:
+        context.user_data['last_created_deal_id'] = last_id
     return ConversationHandler.END
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -488,7 +519,10 @@ async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         )
     else:
         await update.message.reply_text("Действие отменено.")
+    last_id = context.user_data.get('last_created_deal_id')
     context.user_data.clear()
+    if last_id:
+        context.user_data['last_created_deal_id'] = last_id
     return ConversationHandler.END
 
 
@@ -663,7 +697,10 @@ async def exp_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode='HTML'
         )
 
+    last_id = context.user_data.get('last_created_deal_id')
     context.user_data.clear()
+    if last_id:
+        context.user_data['last_created_deal_id'] = last_id
     return ConversationHandler.END
 
 
@@ -671,7 +708,10 @@ async def exp_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     await query.answer()
     await query.edit_message_text("Отменено.", reply_markup=None)
+    last_id = context.user_data.get('last_created_deal_id')
     context.user_data.clear()
+    if last_id:
+        context.user_data['last_created_deal_id'] = last_id
     return ConversationHandler.END
 
 
@@ -769,6 +809,310 @@ async def build_report_string() -> str:
     return "\n".join(lines)
 
 
+async def my_deals_today_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    manager_name = update.effective_user.full_name
+    tg_uid = str(update.effective_user.id)
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"{API_BASE_URL}/users/by-telegram/{tg_uid}", headers=API_HEADERS)
+            if r.status_code == 200:
+                crm_user = r.json()
+                manager_name = crm_user.get("name") or manager_name
+    except Exception:
+        pass
+
+    engine_r = create_engine(DATABASE_URL)
+    Session_r = sessionmaker(bind=engine_r)
+    from sqlalchemy import func as sa_func
+    with Session_r() as session:
+        deals = (
+            session.query(Deal)
+            .options(joinedload(Deal.contact), joinedload(Deal.stage))
+            .filter(sa_func.date(Deal.deal_date) == date.today(), Deal.manager == manager_name)
+            .order_by(Deal.deal_date)
+            .all()
+        )
+    engine_r.dispose()
+
+    if not deals:
+        await update.message.reply_text("На сегодня у вас нет сделок.")
+        return
+
+    lines = [f"📋 Ваши сделки на сегодня ({len(deals)}):"]
+    for d in deals:
+        t = d.deal_date.strftime('%H:%M') if d.deal_date else '--:--'
+        client = d.contact.name if d.contact else '—'
+        lines.append(f"• {t} — {d.title or 'Без названия'} ({client})")
+    await update.message.reply_text("\n".join(lines))
+
+
+async def edit_last_deal_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.args:
+        await update.message.reply_text(
+            "Использование:\n"
+            "/editlastdeal show\n"
+            "/editlastdeal add <service_id> <qty>\n"
+            "/editlastdeal remove <service_id>"
+        )
+        return
+
+    deal_id = context.user_data.get('last_created_deal_id')
+    if not deal_id:
+        await update.message.reply_text("Не нашел последнюю созданную сделку в этой сессии. Сначала создайте новую.")
+        return
+
+    action = context.args[0].lower()
+    async with httpx.AsyncClient(timeout=15) as client:
+        r = await client.get(f"{API_BASE_URL}/deals/{deal_id}", headers=API_HEADERS)
+        if r.status_code != 200:
+            await update.message.reply_text("Не удалось загрузить сделку.")
+            return
+        deal = r.json()
+
+        services = []
+        for item in deal.get('services', []):
+            svc = item.get('service') or {}
+            sid = svc.get('id')
+            if sid and sid > 0:
+                services.append({'service_id': sid, 'quantity': item.get('quantity', 1)})
+
+        if action == 'show':
+            if not deal.get('services'):
+                await update.message.reply_text(f"Сделка #{deal_id}: услуг пока нет")
+                return
+            lines=[f"Сделка #{deal_id}: услуги"]
+            for item in deal.get('services', []):
+                svc=item.get('service') or {}
+                lines.append(f"• id={svc.get('id')} {svc.get('name')} × {item.get('quantity')}")
+            await update.message.reply_text("\n".join(lines))
+            return
+
+        if action == 'add' and len(context.args) >= 3:
+            try:
+                sid = int(context.args[1]); qty=float(context.args[2])
+                if qty <= 0: raise ValueError
+            except Exception:
+                await update.message.reply_text("Неверный формат. Пример: /editlastdeal add 12 1.5")
+                return
+            found = False
+            for s in services:
+                if s['service_id'] == sid:
+                    s['quantity'] += qty
+                    found = True
+                    break
+            if not found:
+                services.append({'service_id': sid, 'quantity': qty})
+        elif action == 'remove' and len(context.args) >= 2:
+            try:
+                sid = int(context.args[1])
+            except Exception:
+                await update.message.reply_text("Неверный формат. Пример: /editlastdeal remove 12")
+                return
+            services = [s for s in services if s['service_id'] != sid]
+        else:
+            await update.message.reply_text("Неизвестная команда. Используйте show/add/remove")
+            return
+
+        patch_payload = {'services': services}
+        upd = await client.patch(f"{API_BASE_URL}/deals/{deal_id}", json=patch_payload, headers=API_HEADERS)
+        if upd.status_code != 200:
+            await update.message.reply_text(f"Не удалось обновить сделку: {upd.status_code}")
+            return
+
+    await update.message.reply_text(f"✅ Сделка #{deal_id} обновлена.")
+
+
+
+
+def _extract_deal_id_from_text(text: str):
+    if not text:
+        return None
+    m = re.search(r'(?:#|№|deal\s*)(\d+)', text, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+    return None
+
+
+def _transcribe_with_openai(file_path: str) -> str:
+    if not OPENAI_API_KEY:
+        raise RuntimeError("OPENAI_API_KEY не установлен")
+    url = f"{OPENAI_BASE_URL.rstrip('/')}/audio/transcriptions"
+    headers = {"Authorization": f"Bearer {OPENAI_API_KEY}"}
+    with open(file_path, 'rb') as f:
+        files = {"file": (os.path.basename(file_path), f, "audio/ogg")}
+        data = {"model": "whisper-1", "response_format": "text", "language": "ru"}
+        r = requests.post(url, headers=headers, files=files, data=data, timeout=120)
+        if r.status_code != 200:
+            raise RuntimeError(f"Whisper API {r.status_code}: {r.text[:200]}")
+        return r.text.strip()
+
+
+def _transcribe_with_local_whisper(file_path: str) -> str:
+    try:
+        import whisper  # type: ignore
+    except Exception as e:
+        raise RuntimeError(f"Локальный whisper недоступен: {e}")
+    model = whisper.load_model("base")
+    result = model.transcribe(file_path, language="ru")
+    text = (result or {}).get("text", "").strip()
+    if not text:
+        raise RuntimeError("Пустая расшифровка")
+    return text
+
+
+def transcribe_voice_file(file_path: str) -> str:
+    errors = []
+    try:
+        return _transcribe_with_openai(file_path)
+    except Exception as e:
+        errors.append(f"openai: {e}")
+    try:
+        return _transcribe_with_local_whisper(file_path)
+    except Exception as e:
+        errors.append(f"local: {e}")
+    raise RuntimeError("; ".join(errors))
+
+
+async def _save_voice_note_to_deal(deal_id: int, text: str):
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.post(
+            f"{API_BASE_URL}/deals/{deal_id}/comments",
+            json={"text": text},
+            headers=API_HEADERS,
+        )
+        if r.status_code not in (200, 201):
+            raise RuntimeError(f"Ошибка API {r.status_code}: {r.text[:200]}")
+
+
+async def voicenote_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    deal_id = None
+    if context.args:
+        try:
+            deal_id = int(context.args[0])
+        except Exception:
+            pass
+
+    if deal_id is None and update.message and update.message.reply_to_message:
+        reply_text = (update.message.reply_to_message.text or update.message.reply_to_message.caption or "")
+        deal_id = _extract_deal_id_from_text(reply_text)
+
+    if deal_id is None:
+        await update.message.reply_text(
+            "Укажите ID сделки: /voicenote <deal_id>\n"
+            "Или ответьте этой командой на сообщение, где есть № сделки."
+        )
+        return
+
+    context.user_data['voicenote_deal_id'] = deal_id
+    context.user_data['voicenote_waiting_voice'] = True
+    context.user_data.pop('voicenote_pending_text', None)
+    context.user_data.pop('voicenote_editing', None)
+    await update.message.reply_text(
+        f"🎤 Отправьте голосовое сообщение для сделки #{deal_id}.\n"
+        "После расшифровки вы сможете сохранить/исправить/отменить."
+    )
+
+
+async def voicenote_voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.user_data.get('voicenote_waiting_voice'):
+        return
+    deal_id = context.user_data.get('voicenote_deal_id')
+    if not deal_id:
+        await update.message.reply_text("Сначала укажите сделку командой /voicenote <deal_id>")
+        return
+
+    msg = await update.message.reply_text("⏳ Расшифровываю голосовое...")
+    tmp_path = None
+    try:
+        voice = update.message.voice
+        tg_file = await context.bot.get_file(voice.file_id)
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.ogg') as tmp:
+            tmp_path = tmp.name
+        await tg_file.download_to_drive(custom_path=tmp_path)
+
+        text = await asyncio.to_thread(transcribe_voice_file, tmp_path)
+        if not text.strip():
+            raise RuntimeError("Не удалось получить текст из голосового сообщения")
+
+        context.user_data['voicenote_pending_text'] = text.strip()
+        context.user_data['voicenote_waiting_voice'] = False
+
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ Сохранить как есть", callback_data="vn_save")],
+            [InlineKeyboardButton("✏️ Исправить текст", callback_data="vn_edit")],
+            [InlineKeyboardButton("❌ Отменить", callback_data="vn_cancel")],
+        ])
+        await msg.edit_text(
+            f"📝 Расшифровка для сделки #{deal_id}:\n\n{text.strip()}",
+            reply_markup=kb,
+        )
+    except Exception as e:
+        logger.error(f"Voice note error: {e}")
+        await msg.edit_text(f"❌ Не удалось обработать голосовое: {e}")
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+
+
+async def voicenote_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    action = query.data
+    deal_id = context.user_data.get('voicenote_deal_id')
+    text = context.user_data.get('voicenote_pending_text', '').strip()
+
+    if action == 'vn_cancel':
+        context.user_data.pop('voicenote_pending_text', None)
+        context.user_data.pop('voicenote_waiting_voice', None)
+        context.user_data.pop('voicenote_editing', None)
+        await query.edit_message_text("Отменено. Комментарий не сохранен.")
+        return
+
+    if not deal_id or not text:
+        await query.edit_message_text("Нет данных для сохранения. Отправьте /voicenote заново.")
+        return
+
+    if action == 'vn_edit':
+        context.user_data['voicenote_editing'] = True
+        await query.edit_message_text(
+            f"Введите исправленный текст для сделки #{deal_id} одним сообщением."
+        )
+        return
+
+    if action == 'vn_save':
+        try:
+            await _save_voice_note_to_deal(deal_id, text)
+            context.user_data.pop('voicenote_pending_text', None)
+            context.user_data.pop('voicenote_editing', None)
+            await query.edit_message_text(f"✅ Комментарий добавлен в сделку #{deal_id}.")
+        except Exception as e:
+            await query.edit_message_text(f"❌ Не удалось сохранить: {e}")
+
+
+async def voicenote_text_edit_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.user_data.get('voicenote_editing'):
+        return
+
+    deal_id = context.user_data.get('voicenote_deal_id')
+    text = (update.message.text or '').strip()
+    if not deal_id:
+        await update.message.reply_text("Не найден ID сделки. Запустите /voicenote заново.")
+        return
+    if not text:
+        await update.message.reply_text("Текст пустой, отправьте исправленный комментарий ещё раз.")
+        return
+
+    try:
+        await _save_voice_note_to_deal(deal_id, text)
+        context.user_data.pop('voicenote_pending_text', None)
+        context.user_data.pop('voicenote_editing', None)
+        await update.message.reply_text(f"✅ Исправленный комментарий добавлен в сделку #{deal_id}.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Не удалось сохранить: {e}")
+
 async def send_report_job(context: ContextTypes.DEFAULT_TYPE):
     logger.info("Отправляю ежедневный отчёт...")
     try:
@@ -794,22 +1138,31 @@ async def send_report_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 # ════════════════════════════════════════
 
 def main() -> None:
-    if not TG_TOKEN or not TG_CHAT_ID: sys.exit(1)
+    if not TG_TOKEN:
+        logger.critical("Переменная окружения TELEGRAM_BOT_TOKEN не установлена!")
+        sys.exit(1)
 
     application = Application.builder().token(TG_TOKEN).build()
 
-    job_queue = application.job_queue
-    report_time = time(hour=18, minute=0, tzinfo=pytz.timezone('Europe/Moscow'))
-    job_queue.run_daily(send_report_job, time=report_time)
+    if TG_CHAT_ID:
+        job_queue = application.job_queue
+        report_time = time(hour=18, minute=0, tzinfo=pytz.timezone('Europe/Moscow'))
+        job_queue.run_daily(send_report_job, time=report_time)
+    else:
+        logger.warning("TELEGRAM_CHAT_ID не установлен: авто-отчет отключен, ручные команды доступны.")
 
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler("newdeal", new_deal_start)],
+        entry_points=[
+            CommandHandler("newdeal", new_deal_start),
+            MessageHandler(filters.Regex(r"(?i)^\s*новая\s+сделка\s*$"), new_deal_start),
+        ],
         states={
             GET_TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_deal_title)],
             GET_CLIENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_client_name)],
-            GET_DATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_deal_date)],
-            GET_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_deal_time)],
-            GET_ADDRESS: [MessageHandler(filters.TEXT & ~filters.COMMAND, get_deal_address)],
+            PICK_CONTACT: [
+                CallbackQueryHandler(cancel_deal_callback, pattern="^cancel_deal$"),
+                CallbackQueryHandler(pick_contact_callback, pattern="^pick_contact_"),
+            ],
             CHOOSE_CATEGORY: [
                 CallbackQueryHandler(cancel_deal_callback, pattern="^cancel_deal$"),
                 CallbackQueryHandler(choose_category_callback, pattern="^cat_"),
@@ -853,11 +1206,20 @@ def main() -> None:
         "/newexpense — записать расход\n"
         "/today — выезды на сегодня\n"
         "/tomorrow — выезды на завтра\n"
-        "/sendreport — отправить отчёт"
+        "/sendreport — отправить отчёт\n"
+        "/mydeals — мои сделки на сегодня\n"
+        "/editlastdeal — редактировать последнюю сделку\n"
+        "/voicenote — голосовая заметка к сделке"
     )))
     application.add_handler(CommandHandler("today", today_command))
     application.add_handler(CommandHandler("tomorrow", tomorrow_command))
     application.add_handler(CommandHandler("sendreport", send_report_command))
+    application.add_handler(CommandHandler("mydeals", my_deals_today_command))
+    application.add_handler(CommandHandler("editlastdeal", edit_last_deal_command))
+    application.add_handler(CommandHandler("voicenote", voicenote_command))
+    application.add_handler(CallbackQueryHandler(voicenote_callback, pattern="^vn_(save|edit|cancel)$"))
+    application.add_handler(MessageHandler(filters.VOICE, voicenote_voice_handler))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, voicenote_text_edit_handler))
 
     logger.info("Бот запускается...")
     application.run_polling()

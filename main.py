@@ -7,6 +7,7 @@ import secrets
 import threading
 import time as _time
 import shutil
+import importlib.util
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from contextlib import asynccontextmanager
@@ -36,6 +37,9 @@ APP_BASE_URL   = os.getenv("APP_BASE_URL", "https://crmpokos.ru").rstrip("/")
 CALLBACK_URL   = f"{APP_BASE_URL}/api/auth/callback"
 SESSION_SECRET = os.getenv("SESSION_SECRET", secrets.token_hex(32))
 INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+OPENAI_ACCESS_ID = os.getenv("OPENAI_ACCESS_ID") or os.getenv("OPENAI_API_KEY")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 ROLE_CLAIM     = "https://grass-crm/role"
 CACHE_TTL      = 300
 TAX_RATE       = float(os.getenv("TAX_RATE", "0.04")) # 4% УСН "Доходы" для самозанятых
@@ -67,11 +71,20 @@ Base = declarative_base()
 engine = create_engine(DATABASE_URL, client_encoding='utf8')
 SessionFactory = sessionmaker(bind=engine, autoflush=False)
 
-class User(Base): __tablename__ = "users"; id,username,name,email = Column(String, primary_key=True),Column(String),Column(String),Column(String); role=Column(String, default="User")
+class User(Base): __tablename__ = "users"; id,username,name,email = Column(String, primary_key=True),Column(String),Column(String),Column(String); role=Column(String, default="User"); telegram_id=Column(String(50), unique=True, index=True, nullable=True)
 class Service(Base): __tablename__ = "services"; id,name,price,unit = Column(Integer,primary_key=True),Column(String(200),nullable=False),Column(Float,default=0.0),Column(String(50),default="шт"); min_volume=Column(Float,default=1.0); notes=Column(Text)
 class DealService(Base): __tablename__ = "deal_services"; id,deal_id,service_id,quantity,price_at_moment = Column(Integer,primary_key=True),Column(Integer,ForeignKey("deals.id",ondelete="CASCADE")),Column(Integer,ForeignKey("services.id",ondelete="RESTRICT")),Column(Float,default=1.0),Column(Float,nullable=False); service = relationship("Service")
 class Stage(Base): __tablename__ = "stages"; id,name,order,type,is_final,color = Column(Integer,primary_key=True),Column(String(100),nullable=False,unique=True),Column(Integer,default=0),Column(String(50),default="regular"),Column(Boolean,default=False),Column(String(20),default="#6B7280"); deals = relationship("Deal", back_populates="stage")
-class Contact(Base): __tablename__ = "contacts"; id,name,phone,source=Column(Integer,primary_key=True),Column(String(200),nullable=False),Column(String(50),unique=True,index=True),Column(String(100)); deals = relationship("Deal",back_populates="contact")
+class Contact(Base):
+    __tablename__ = "contacts"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(200), nullable=False)
+    phone = Column(String(50), unique=True, index=True)
+    source = Column(String(100))
+    telegram_id = Column(String(50), unique=True, index=True, nullable=True)
+    telegram_username = Column(String(100), nullable=True)
+    addresses = Column(Text, nullable=True)  # JSON-список адресов
+    deals = relationship("Deal", back_populates="contact")
 class Deal(Base): 
     __tablename__ = "deals"
     id=Column(Integer,primary_key=True)
@@ -89,6 +102,9 @@ class Deal(Base):
     tax_rate = Column(Float, default=4.0, nullable=False)
     tax_included = Column(Boolean, default=True, nullable=False)
     discount = Column(Float, default=0.0, nullable=False)
+    discount_type = Column(String(10), default="percent", nullable=False)
+    repeat_interval_days = Column(Integer, nullable=True)   # NULL = не повторяется
+    next_repeat_date = Column(Date, nullable=True)          # дата следующего выезда
 
     contact=relationship("Contact",back_populates="deals")
     stage=relationship("Stage",back_populates="deals")
@@ -129,6 +145,7 @@ class CRMFile(Base):
     uploaded_by = Column(String)
     uploaded_by_name = Column(String)
     created_at = Column(DateTime, default=datetime.utcnow)
+    file_kind = Column(String(20), nullable=True)  # before | after | general
     contact = relationship("Contact")
     deal = relationship("Deal")
 
@@ -154,6 +171,15 @@ class DailyPhrase(Base):
     phrase = Column(Text, nullable=False)
     category = Column(String(50), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class BotFaq(Base):
+    __tablename__ = "bot_faq"
+    id = Column(Integer, primary_key=True)
+    intent = Column(String(100), nullable=False)
+    question_example = Column(Text)
+    answer = Column(Text, nullable=False)
+    priority = Column(Integer, default=10)
+    active = Column(Boolean, default=True)
 
 def init_db_structure(): Base.metadata.create_all(engine)
 def seed_initial_data(s: DBSession):
@@ -181,9 +207,12 @@ class DealCreate(BaseModel):
     tax_rate: Optional[float] = 4.0
     tax_included: Optional[bool] = True
     discount: Optional[float] = 0.0
+    discount_type: Optional[str] = "percent"
     work_date: Optional[str] = None
     work_time: Optional[str] = None
     address: Optional[str] = None
+    repeat_interval_days: Optional[int] = None
+    next_repeat_date: Optional[str] = None
 
 class DealUpdate(BaseModel): 
     title:Optional[str]=None; 
@@ -195,14 +224,17 @@ class DealUpdate(BaseModel):
     tax_rate: Optional[float] = None
     tax_included: Optional[bool] = None
     discount: Optional[float] = None
+    discount_type: Optional[str] = None
     work_date: Optional[str] = None
     work_time: Optional[str] = None
     address: Optional[str] = None
+    repeat_interval_days: Optional[int] = None
+    next_repeat_date: Optional[str] = None
 
 class TaskCreate(BaseModel): title: str; description: Optional[str]=None; due_date: Optional[date]=None; priority: Optional[str]="Обычный"; status: Optional[str]="Открыта"; assignee: Optional[str]=None; contact_id: Optional[int]=None; deal_id: Optional[int]=None
 class TaskUpdate(BaseModel): title: Optional[str]=None; description: Optional[str]=None; due_date: Optional[date]=None; priority: Optional[str]=None; status: Optional[str]=None; assignee: Optional[str]=None; is_done: Optional[bool]=None; contact_id: Optional[int]=None; deal_id: Optional[int]=None
-class ContactCreate(BaseModel): name: str = Field(..., min_length=1); phone: Optional[str] = None; source: Optional[str] = None
-class ContactUpdate(BaseModel): name: Optional[str] = Field(None, min_length=1); phone: Optional[str] = None; source: Optional[str] = None
+class ContactCreate(BaseModel): name: str = Field(..., min_length=1); phone: Optional[str] = None; source: Optional[str] = None; telegram_id: Optional[str] = None; telegram_username: Optional[str] = None; addresses: Optional[List[str]] = None
+class ContactUpdate(BaseModel): name: Optional[str] = Field(None, min_length=1); phone: Optional[str] = None; source: Optional[str] = None; telegram_id: Optional[str] = None; telegram_username: Optional[str] = None; addresses: Optional[List[str]] = None
 class ServiceCreate(BaseModel): name: str = Field(...,min_length=1); price: float; unit: str; min_volume: Optional[float]=1.0; notes: Optional[str]=None
 class ServiceUpdate(BaseModel): name: Optional[str]=Field(None,min_length=1); price: Optional[float]=None; unit: Optional[str]=None; min_volume: Optional[float]=None; notes: Optional[str]=None
 class EquipmentCreate(BaseModel): name: str; model: Optional[str]=None; serial: Optional[str]=None; purchase_date: Optional[date]=None; purchase_cost: Optional[float]=None; status: Optional[str]='active'; notes: Optional[str]=None; engine_hours: Optional[float]=None; fuel_norm: Optional[float]=None; last_maintenance_date: Optional[date]=None; next_maintenance_date: Optional[date]=None
@@ -212,11 +244,22 @@ class ConsumableUpdate(BaseModel): name: Optional[str] = None; unit: Optional[st
 class MaintenanceConsumableItem(BaseModel): consumable_id: int; quantity: float
 class MaintenanceCreate(BaseModel): equipment_id: int; date: date; work_description: str; notes: Optional[str]=None; consumables: List[MaintenanceConsumableItem] = []
 class MaintenanceUpdate(BaseModel): date: Optional[date]=None; work_description: Optional[str]=None; notes: Optional[str]=None; consumables: Optional[List[MaintenanceConsumableItem]] = None
-class ExpenseCreate(BaseModel): name: str; amount: float; date: date; category: str
-class ExpenseUpdate(BaseModel): name: Optional[str] = None; amount: Optional[float] = None; date: Optional[date] = None; category: Optional[str] = None
+class ExpenseCreate(BaseModel): name: str; amount: float; date: str; category: str
+class ExpenseUpdate(BaseModel):
+    name: Optional[str] = None
+    amount: Optional[float] = None
+    date: Optional[str] = None   # accept string, convert manually
+    category: Optional[str] = None
 class TaxPaymentCreate(BaseModel): amount: float; date: date; note: Optional[str] = None; year: int
 class InteractionCreate(BaseModel): type: str = "note"; text: str = Field(..., min_length=1)
 class DealCommentCreate(BaseModel): text: str = Field(..., min_length=1)
+class UserTelegramUpdate(BaseModel): telegram_id: Optional[str] = None
+class ServiceAIAgentRequest(BaseModel):
+    prompt: str = Field(..., min_length=3, max_length=5000)
+    year: Optional[int] = None
+    base_url: Optional[str] = None
+    access_id: Optional[str] = None
+    model: Optional[str] = None
 
 
 # --- Response Models to prevent serialization cycles ---
@@ -264,6 +307,12 @@ async def lifespan(app: FastAPI):
     init_db_structure()
     with SessionFactory() as db: seed_initial_data(db)
     _ensure_budget_table()
+    _ensure_users_telegram_column()
+    _ensure_files_kind_column()
+    _ensure_contacts_telegram_columns()
+    _ensure_deals_discount_type()
+    _ensure_repeat_columns()
+    threading.Thread(target=_repeat_deals_worker, daemon=True).start()
     yield
     print("App shutting down.",flush=True)
 
@@ -325,7 +374,30 @@ def logout(req:Request): req.session.clear(); return RedirectResponse(f"https://
 @app.get("/api/me")
 def get_me(user:dict=Depends(get_current_user)): return user
 @app.get("/api/users")
-def get_users(db:DBSession=Depends(get_db),_=Depends(get_current_user)): return db.query(User).all()
+def get_users(db:DBSession=Depends(get_db),_=Depends(get_current_user)): return db.query(User).order_by(User.name).all()
+
+@app.get("/api/users/by-telegram/{telegram_id}")
+def get_user_by_telegram(telegram_id: str, db: DBSession = Depends(get_db), _=Depends(get_current_user)):
+    user = db.query(User).filter(User.telegram_id == telegram_id).first()
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+    return user
+
+@app.patch("/api/users/{user_id}/telegram")
+def set_user_telegram_id(user_id: str, data: UserTelegramUpdate, db: DBSession = Depends(get_db), _=Depends(require_admin)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(404, "Пользователь не найден")
+
+    new_tid = (data.telegram_id or "").strip() or None
+    if new_tid:
+        conflict = db.query(User).filter(User.telegram_id == new_tid, User.id != user_id).first()
+        if conflict:
+            raise HTTPException(400, "Этот Telegram ID уже привязан к другому пользователю")
+    user.telegram_id = new_tid
+    db.commit()
+    db.refresh(user)
+    return user
 @app.get("/api/stages")
 def get_stages(db:DBSession=Depends(get_db),_=Depends(get_current_user)): return db.query(Stage).order_by(Stage.order).all()
 @app.post("/api/cache/invalidate")
@@ -383,10 +455,14 @@ def create_deal(deal_data: DealCreate, db: DBSession = Depends(get_db), _=Depend
         subtotal += price * item.quantity
         service_items_for_db.append(DealService(service_id=service.id, quantity=item.quantity, price_at_moment=price))
 
-    discount_percent = deal_data.discount or 0
+    discount_val = deal_data.discount or 0
+    discount_type = deal_data.discount_type or "percent"
     tax_rate_percent = deal_data.tax_rate or 0
     
-    discount_amount = subtotal * (discount_percent / 100.0)
+    if discount_type == "fixed":
+        discount_amount = min(discount_val, subtotal)
+    else:
+        discount_amount = subtotal * (discount_val / 100.0)
     subtotal_after_discount = subtotal - discount_amount
     
     # Налог включён: сумма = subtotal, налог отображается отдельно но не прибавляется
@@ -405,7 +481,8 @@ def create_deal(deal_data: DealCreate, db: DBSession = Depends(get_db), _=Depend
         manager=deal_data.manager,
         services=service_items_for_db,
         total=round(final_total, 2),
-        discount=discount_percent,
+        discount=discount_val,
+        discount_type=discount_type,
         tax_rate=tax_rate_percent,
         tax_included=deal_data.tax_included,
         address=deal_data.address or None
@@ -419,10 +496,19 @@ def create_deal(deal_data: DealCreate, db: DBSession = Depends(get_db), _=Depend
             new_deal.deal_date = datetime.fromisoformat(dt_str)
         except Exception:
             pass
+    # Повтор
+    if deal_data.repeat_interval_days and deal_data.next_repeat_date:
+        try:
+            from datetime import date as _d
+            new_deal.repeat_interval_days = deal_data.repeat_interval_days
+            new_deal.next_repeat_date = _d.fromisoformat(str(deal_data.next_repeat_date)[:10])
+        except Exception:
+            pass
     db.add(new_deal)
     db.commit()
+    db.refresh(new_deal)
     _cache.invalidate("deals", "years")
-    return {"status": "ok"}
+    return {"status": "ok", "id": new_deal.id}
 
 @app.get("/api/deals/{deal_id}")
 def get_deal_details(deal_id: int, db: DBSession = Depends(get_db), _=Depends(get_current_user)):
@@ -452,10 +538,13 @@ def get_deal_details(deal_id: int, db: DBSession = Depends(get_db), _=Depends(ge
         "contact": {"id": deal.contact.id, "name": deal.contact.name} if deal.contact else None,
         "services": services_list,
         "discount": deal.discount,
+        "discount_type": deal.discount_type or "percent",
         "tax_rate": deal.tax_rate,
         "tax_included": deal.tax_included,
         "deal_date": deal.deal_date.isoformat() if deal.deal_date else None,
         "address": deal.address or "",
+        "repeat_interval_days": deal.repeat_interval_days,
+        "next_repeat_date": deal.next_repeat_date.isoformat() if deal.next_repeat_date else None,
     }
 
 @app.patch("/api/deals/{deal_id}")
@@ -474,7 +563,7 @@ def update_deal(deal_id: int, deal_data: DealUpdate, db: DBSession = Depends(get
     elif "contact_id" in update_data:
         deal.contact_id = update_data["contact_id"]
 
-    recalculate = "services" in update_data or "discount" in update_data or "tax_rate" in update_data or "tax_included" in update_data
+    recalculate = "services" in update_data or "discount" in update_data or "discount_type" in update_data or "tax_rate" in update_data or "tax_included" in update_data
 
     if "services" in update_data:
         db.query(DealService).filter(DealService.deal_id == deal_id).delete(synchronize_session=False)
@@ -486,14 +575,19 @@ def update_deal(deal_id: int, deal_data: DealUpdate, db: DBSession = Depends(get
         db.flush()
     
     if "discount" in update_data: deal.discount = update_data["discount"]
+    if "discount_type" in update_data: deal.discount_type = update_data["discount_type"]
     if "tax_rate" in update_data: deal.tax_rate = update_data["tax_rate"]
     if "tax_included" in update_data: deal.tax_included = update_data["tax_included"]
     
     if recalculate:
         subtotal = sum(ds.price_at_moment * ds.quantity for ds in deal.services)
-        discount_percent = deal.discount or 0
+        discount_val = deal.discount or 0
+        discount_type = deal.discount_type or "percent"
         tax_rate_percent = deal.tax_rate or 0
-        discount_amount = subtotal * (discount_percent / 100.0)
+        if discount_type == "fixed":
+            discount_amount = min(discount_val, subtotal)
+        else:
+            discount_amount = subtotal * (discount_val / 100.0)
         subtotal_after_discount = subtotal - discount_amount
         
         tax_amount = subtotal_after_discount * (tax_rate_percent / 100.0)
@@ -519,10 +613,30 @@ def update_deal(deal_id: int, deal_data: DealUpdate, db: DBSession = Depends(get
                 deal.deal_date = datetime.fromisoformat(dt_str)
             except Exception:
                 pass
+    if "repeat_interval_days" in update_data:
+        deal.repeat_interval_days = update_data["repeat_interval_days"] or None
+    if "next_repeat_date" in update_data:
+        raw = update_data["next_repeat_date"]
+        if raw:
+            try:
+                from datetime import date as _d
+                deal.next_repeat_date = _d.fromisoformat(str(raw)[:10])
+            except Exception:
+                pass
+        else:
+            deal.next_repeat_date = None
+
+    # Если сделка перешла в финальный неуспешный этап — снять повтор
+    if "stage_id" in update_data and update_data["stage_id"]:
+        stage = db.query(Stage).filter(Stage.id == update_data["stage_id"]).first()
+        if stage and stage.is_final and "успешно" not in (stage.name or "").lower():
+            deal.repeat_interval_days = None
+            deal.next_repeat_date = None
 
     db.commit()
+    db.refresh(deal)
     _cache.invalidate("deals", "years")
-    return {"status": "ok"}
+    return {"status": "ok", "id": deal.id}
 
 @app.delete("/api/deals/{deal_id}", status_code=204)
 def delete_deal(deal_id: int, db:DBSession=Depends(get_db),_=Depends(require_admin)):
@@ -534,19 +648,43 @@ def delete_deal(deal_id: int, db:DBSession=Depends(get_db),_=Depends(require_adm
 
 # --- CONTACTS ---
 @app.get("/api/contacts")
-def get_contacts(db:DBSession=Depends(get_db),_=Depends(get_current_user)):
-    return db.query(Contact).order_by(Contact.name).all()
+def get_contacts(search: Optional[str] = None, db:DBSession=Depends(get_db),_=Depends(get_current_user)):
+    import json as _json
+    q = db.query(Contact).order_by(Contact.name)
+    if search and search.strip():
+        s = f"%{search.strip()}%"
+        q = q.filter(
+            Contact.name.ilike(s) |
+            Contact.phone.ilike(s) |
+            Contact.source.ilike(s)
+        )
+    contacts = q.all()
+    result = []
+    for c in contacts:
+        d = {col.name: getattr(c, col.name) for col in c.__table__.columns}
+        try: d['addresses'] = _json.loads(c.addresses) if c.addresses else []
+        except: d['addresses'] = []
+        result.append(d)
+    return result
 
 @app.post("/api/contacts", status_code=201)
 def create_contact(contact_data: ContactCreate, db: DBSession = Depends(get_db), _=Depends(get_current_user)):
+    import json as _json
     if contact_data.phone and contact_data.phone.strip():
         existing = db.query(Contact).filter(Contact.phone == contact_data.phone).first()
         if existing: raise HTTPException(status_code=409, detail="Контакт с таким телефоном уже существует")
-    new_contact = Contact(**contact_data.model_dump()); db.add(new_contact); db.commit(); db.refresh(new_contact)
-    _cache.invalidate("contacts"); return new_contact
+    data = contact_data.model_dump()
+    addresses = data.pop('addresses', None) or []
+    new_contact = Contact(**data, addresses=_json.dumps(addresses, ensure_ascii=False))
+    db.add(new_contact); db.commit(); db.refresh(new_contact)
+    _cache.invalidate("contacts")
+    result = {col.name: getattr(new_contact, col.name) for col in new_contact.__table__.columns}
+    result['addresses'] = addresses
+    return result
 
 @app.patch("/api/contacts/{contact_id}")
 def update_contact(contact_id: int, contact_data: ContactUpdate, db: DBSession = Depends(get_db), _=Depends(get_current_user)):
+    import json as _json
     contact = db.query(Contact).filter(Contact.id == contact_id).first()
     if not contact: raise HTTPException(status_code=404, detail="Контакт не найден")
     
@@ -555,10 +693,17 @@ def update_contact(contact_id: int, contact_data: ContactUpdate, db: DBSession =
         existing = db.query(Contact).filter(Contact.phone == update_data["phone"], Contact.id != contact_id).first()
         if existing: raise HTTPException(status_code=409, detail="Контакт с таким телефоном уже существует")
 
+    if 'addresses' in update_data:
+        contact.addresses = _json.dumps(update_data.pop('addresses') or [], ensure_ascii=False)
+
     for key, value in update_data.items(): setattr(contact, key, value)
     
     db.commit(); db.refresh(contact)
-    _cache.invalidate("contacts", "deals"); return contact
+    _cache.invalidate("contacts", "deals")
+    result = {col.name: getattr(contact, col.name) for col in contact.__table__.columns}
+    try: result['addresses'] = _json.loads(contact.addresses) if contact.addresses else []
+    except: result['addresses'] = []
+    return result
 
 
 @app.get("/api/contacts/{contact_id}/deals")
@@ -617,10 +762,21 @@ def create_expense(data: ExpenseCreate, db: DBSession = Depends(get_db), _=Depen
             db.flush()
             _cache.invalidate("expense_categories")
 
-    new_expense = Expense(name=data.name, amount=data.amount, date=data.date, category_id=category.id if category else None)
+    from datetime import date as _dt
+    try:
+        parsed_date = _dt.fromisoformat(data.date[:10]) if data.date and data.date not in ("null","None","") else _dt.today()
+    except (ValueError, TypeError):
+        parsed_date = _dt.today()
+    new_expense = Expense(name=data.name, amount=data.amount, date=parsed_date, category_id=category.id if category else None)
     db.add(new_expense); db.commit(); db.refresh(new_expense)
     _cache.invalidate("expenses", "years")
-    return new_expense
+    return {
+        "id": new_expense.id,
+        "name": new_expense.name,
+        "amount": new_expense.amount,
+        "date": new_expense.date.isoformat() if new_expense.date else None,
+        "category": new_expense.category.name if new_expense.category else ""
+    }
 
 @app.patch("/api/expenses/{expense_id}")
 def update_expense(expense_id: int, data: ExpenseUpdate, db: DBSession = Depends(get_db), _=Depends(require_admin)):
@@ -639,11 +795,26 @@ def update_expense(expense_id: int, data: ExpenseUpdate, db: DBSession = Depends
                 _cache.invalidate("expense_categories")
         expense.category_id = category.id if category else None
 
+    if "date" in update_data:
+        raw_date = update_data.pop("date")
+        if raw_date and raw_date not in ("null", "None", ""):
+            try:
+                from datetime import date as _date
+                expense.date = _date.fromisoformat(raw_date[:10])
+            except (ValueError, TypeError):
+                pass  # keep existing date
+
     for key, value in update_data.items(): setattr(expense, key, value)
     
     db.commit(); db.refresh(expense)
     _cache.invalidate("expenses", "years")
-    return expense
+    return {
+        "id": expense.id,
+        "name": expense.name,
+        "amount": expense.amount,
+        "date": expense.date.isoformat() if expense.date else None,
+        "category": expense.category.name if expense.category else ""
+    }
 
 @app.delete("/api/expenses/{expense_id}", status_code=204)
 def delete_expense(expense_id: int, db: DBSession = Depends(get_db), _=Depends(require_admin)):
@@ -949,6 +1120,200 @@ def _ensure_budget_table():
     if not insp.has_table("budgets"):
         Budget.__table__.create(engine)
 
+
+def _ensure_users_telegram_column():
+    insp = sa_inspect(engine)
+    if not insp.has_table("users"):
+        return
+    cols = {c["name"] for c in insp.get_columns("users")}
+    with engine.begin() as conn:
+        if "telegram_id" not in cols:
+            conn.execute(text("ALTER TABLE users ADD COLUMN telegram_id VARCHAR(50)"))
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_users_telegram_id ON users (telegram_id)"))
+        except Exception:
+            pass
+
+
+def _ensure_repeat_columns():
+    """Add repeat_interval_days and next_repeat_date to deals if missing."""
+    with SessionFactory() as db:
+        try:
+            db.execute(text("ALTER TABLE deals ADD COLUMN IF NOT EXISTS repeat_interval_days INTEGER"))
+            db.execute(text("ALTER TABLE deals ADD COLUMN IF NOT EXISTS next_repeat_date DATE"))
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            print(f"_ensure_repeat_columns: {e}", flush=True)
+
+
+def _send_tg_sync(text_msg: str):
+    """Fire-and-forget sync telegram notification via bot отчётов."""
+    import requests as _req
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    chat  = os.getenv("TELEGRAM_CHAT_ID")
+    if not token or not chat:
+        return
+    try:
+        _req.post(
+            f"https://api.telegram.org/bot{token}/sendMessage",
+            json={"chat_id": chat, "text": text_msg},
+            timeout=8
+        )
+    except Exception as e:
+        print(f"TG notify error: {e}", flush=True)
+
+
+def _repeat_deals_worker():
+    """Background thread: every 60 min check and create repeat deals."""
+    import time as _time
+    while True:
+        try:
+            _process_repeat_deals()
+        except Exception as e:
+            print(f"repeat_deals_worker error: {e}", flush=True)
+        _time.sleep(3600)
+
+
+def _process_repeat_deals():
+    from datetime import date as _date, timedelta as _td
+    today = _date.today()
+    horizon = today + _td(days=3)  # создаём за 3 дня до выезда
+
+    with SessionFactory() as db:
+        # Стадия "Провалена" — финальная, не успешная
+        lost_stage_ids = {
+            s.id for s in db.query(Stage).all()
+            if s.is_final and "успешно" not in (s.name or "").lower()
+        }
+        first_stage = db.query(Stage).order_by(Stage.order).first()
+
+        deals = (
+            db.query(Deal)
+            .filter(Deal.repeat_interval_days.isnot(None))
+            .filter(Deal.next_repeat_date.isnot(None))
+            .filter(Deal.next_repeat_date <= horizon)
+            .all()
+        )
+
+        for deal in deals:
+            # Прекратить если сделка провалена
+            if deal.stage_id in lost_stage_ids:
+                deal.repeat_interval_days = None
+                deal.next_repeat_date = None
+                db.commit()
+                continue
+
+            repeat_date = deal.next_repeat_date
+
+            # Проверяем нет ли уже созданной сделки на эту дату от этой (избегаем дублей)
+            existing = db.query(Deal).filter(
+                Deal.contact_id == deal.contact_id,
+                Deal.deal_date == datetime.combine(repeat_date, datetime.min.time()),
+                Deal.title == deal.title,
+                Deal.id != deal.id
+            ).first()
+
+            if not existing:
+                # Копируем услуги
+                new_deal = Deal(
+                    contact_id=deal.contact_id,
+                    stage_id=first_stage.id if first_stage else deal.stage_id,
+                    title=deal.title,
+                    notes=deal.notes or "",
+                    manager=deal.manager,
+                    address=deal.address,
+                    tax_rate=deal.tax_rate,
+                    tax_included=deal.tax_included,
+                    discount=deal.discount,
+                    discount_type=deal.discount_type,
+                    deal_date=datetime.combine(repeat_date, datetime.min.time()),
+                    is_repeat=True,
+                )
+                db.add(new_deal)
+                db.flush()
+                db.refresh(new_deal)
+
+                # Копируем услуги
+                for ds in deal.services:
+                    db.add(DealService(
+                        deal_id=new_deal.id,
+                        service_id=ds.service_id,
+                        quantity=ds.quantity,
+                        price_at_moment=ds.price_at_moment
+                    ))
+                db.flush()
+
+                # Пересчёт суммы
+                subtotal = sum(s.price_at_moment * s.quantity for s in new_deal.services)
+                disc = deal.discount or 0
+                if deal.discount_type == "fixed":
+                    disc_amt = min(disc, subtotal)
+                else:
+                    disc_amt = subtotal * (disc / 100.0)
+                after_disc = subtotal - disc_amt
+                tax_amt = after_disc * ((deal.tax_rate or 0) / 100.0)
+                new_deal.total = round(after_disc + (0 if deal.tax_included else tax_amt), 2)
+
+                db.commit()
+
+                # Telegram уведомление
+                contact = db.query(Contact).filter(Contact.id == deal.contact_id).first()
+                contact_name = contact.name if contact else "—"
+                msg = (
+                    f"🔁 Повторная сделка создана\n\n"
+                    f"👤 Клиент: {contact_name}\n"
+                    f"📋 Название: {deal.title}\n"
+                    f"📅 Дата выезда: {repeat_date.strftime('%d.%m.%Y')}\n"
+                    f"📍 Адрес: {deal.address or '—'}\n"
+                    f"💰 Сумма: {new_deal.total:,.0f} ₽\n"
+                    f"👷 Ответственный: {deal.manager or '—'}"
+                )
+                threading.Thread(target=_send_tg_sync, args=(msg,), daemon=True).start()
+
+            # Сдвигаем next_repeat_date на следующий интервал от текущей даты повтора
+            from datetime import timedelta as _td2
+            deal.next_repeat_date = repeat_date + _td2(days=deal.repeat_interval_days)
+            db.commit()
+
+
+def _ensure_deals_discount_type():
+    insp = sa_inspect(engine)
+    if not insp.has_table("deals"):
+        return
+    cols = {c["name"] for c in insp.get_columns("deals")}
+    if "discount_type" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE deals ADD COLUMN discount_type VARCHAR(10) DEFAULT 'percent' NOT NULL"))
+
+def _ensure_files_kind_column():
+    insp = sa_inspect(engine)
+    if not insp.has_table("crm_files"):
+        return
+    cols = {c["name"] for c in insp.get_columns("crm_files")}
+    if "file_kind" in cols:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE crm_files ADD COLUMN file_kind VARCHAR(20)"))
+
+def _ensure_contacts_telegram_columns():
+    insp = sa_inspect(engine)
+    if not insp.has_table("contacts"):
+        return
+    cols = {c["name"] for c in insp.get_columns("contacts")}
+    with engine.begin() as conn:
+        if "telegram_id" not in cols:
+            conn.execute(text("ALTER TABLE contacts ADD COLUMN telegram_id VARCHAR(50)"))
+        if "telegram_username" not in cols:
+            conn.execute(text("ALTER TABLE contacts ADD COLUMN telegram_username VARCHAR(100)"))
+        if "addresses" not in cols:
+            conn.execute(text("ALTER TABLE contacts ADD COLUMN addresses TEXT"))
+        try:
+            conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS ix_contacts_telegram_id ON contacts (telegram_id) WHERE telegram_id IS NOT NULL"))
+        except Exception:
+            pass
+
+
 # ── PYDANTIC для бюджета ──────────────────────────────────────────────────────
 class BudgetCreate(BaseModel):
     year: int
@@ -1054,6 +1419,43 @@ def get_analytics(year: int, db: DBSession = Depends(get_db), _=Depends(require_
     repeat_rev = sum(d.total or 0 for d in repeat_won)
     new_rev    = sum(d.total or 0 for d in new_won)
 
+    # 6. Причины провала и 7. Источники клиентов
+    lost_reason_count = defaultdict(int)
+    if lost_stage_ids:
+        lost_comments = (
+            db.query(DealComment.text)
+            .join(Deal, Deal.id == DealComment.deal_id)
+            .filter(
+                extract("year", Deal.created_at) == year,
+                Deal.stage_id.in_(lost_stage_ids),
+                DealComment.text.ilike("Причина провала:%")
+            )
+            .all()
+        )
+        for (txt,) in lost_comments:
+            text_val = (txt or "").strip()
+            reason = text_val.split(":", 1)[1].strip() if ":" in text_val else text_val
+            reason = reason or "Не указана"
+            lost_reason_count[reason] += 1
+
+    lost_reasons = sorted(
+        [{"name": k, "count": v} for k, v in lost_reason_count.items()],
+        key=lambda x: x["count"], reverse=True
+    )
+
+    client_source_count = defaultdict(int)
+    unique_contact_ids = {d.contact_id for d in deals if d.contact_id}
+    if unique_contact_ids:
+        contacts = db.query(Contact).filter(Contact.id.in_(list(unique_contact_ids))).all()
+        for c in contacts:
+            src = (c.source or "").strip() or "Не указан"
+            client_source_count[src] += 1
+
+    client_sources = sorted(
+        [{"name": k, "count": v} for k, v in client_source_count.items()],
+        key=lambda x: x["count"], reverse=True
+    )
+
     return {
         "total_deals":   len(deals),
         "won_deals":     len(won),
@@ -1073,6 +1475,8 @@ def get_analytics(year: int, db: DBSession = Depends(get_db), _=Depends(require_
             "new_revenue":    round(new_rev, 2),
             "repeat_rate":    round(len(repeat_won) / len(won) * 100, 1) if won else 0,
         },
+        "lost_reasons": lost_reasons,
+        "client_sources": client_sources,
     }
 
 
@@ -1251,108 +1655,218 @@ def export_pdf(year: int, db: DBSession = Depends(get_db), _=Depends(require_adm
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.lib import colors
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
+                                        Paragraph, Spacer, HRFlowable, KeepTogether)
         from reportlab.lib.units import cm
         from reportlab.pdfbase import pdfmetrics
         from reportlab.pdfbase.ttfonts import TTFont
-        import glob
-        # Попытка зарегистрировать шрифт с поддержкой кириллицы
-        font_registered = False
-        for path in ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                     "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-                     "/usr/share/fonts/TTF/DejaVuSans.ttf"]:
-            if os.path.exists(path):
-                pdfmetrics.registerFont(TTFont("CyrFont", path))
-                font_registered = True; break
-        FONT = "CyrFont" if font_registered else "Helvetica"
+        font_ok = False
+        for fp in ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                   "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+                   "/usr/share/fonts/TTF/DejaVuSans.ttf"]:
+            if os.path.exists(fp):
+                try:
+                    pdfmetrics.registerFont(TTFont("F", fp))
+                except Exception:
+                    pass  # already registered in this process - that's fine
+                font_ok = True; break
+        F = "F" if font_ok else "Helvetica"
     except ImportError:
         raise HTTPException(503, "reportlab не установлен на сервере")
 
-    stages = {s.id: s for s in db.query(Stage).all()}
-    contacts = {c.id: c for c in db.query(Contact).all()}
-    deals_q = db.query(Deal).filter(extract('year', Deal.created_at) == year).order_by(Deal.created_at).all()
-    expenses_q = db.query(Expense).filter(extract('year', Expense.date) == year).order_by(Expense.date).all()
-    
-    won_ids = {s.id for s in stages.values() if s.is_final and "успешно" in s.name.lower()}
+    # ── данные ────────────────────────────────────────────────────────────────
+    stages     = {s.id: s for s in db.query(Stage).all()}
+    contacts   = {c.id: c for c in db.query(Contact).all()}
+    deals_q    = db.query(Deal).options(joinedload(Deal.contact)).filter(
+                     extract('year', Deal.created_at) == year).order_by(Deal.created_at).all()
+    expenses_q = db.query(Expense).options(joinedload(Expense.category)).filter(
+                     extract('year', Expense.date) == year).order_by(Expense.date).all()
+
+    won_ids   = {s.id for s in stages.values() if s.is_final and "успешно" in s.name.lower()}
+    lost_ids  = {s.id for s in stages.values() if s.is_final and "успешно" not in s.name.lower()}
     won_deals = [d for d in deals_q if d.stage_id in won_ids]
-    total_rev = sum(d.total or 0 for d in won_deals)
-    total_exp = sum(e.amount for e in expenses_q)
-    avg_check = round(total_rev / len(won_deals), 2) if won_deals else 0
+    lost_deals= [d for d in deals_q if d.stage_id in lost_ids]
 
-    buf = io.BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=2*cm, rightMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
-    styles = getSampleStyleSheet()
-    
-    h1 = ParagraphStyle("h1", fontName=FONT, fontSize=18, spaceAfter=6, textColor=colors.HexColor("#1a3318"))
-    h2 = ParagraphStyle("h2", fontName=FONT, fontSize=13, spaceAfter=4, textColor=colors.HexColor("#2d5426"), spaceBefore=16)
-    normal = ParagraphStyle("n", fontName=FONT, fontSize=9, leading=14)
-    
-    FOREST = colors.HexColor("#1a3318"); SAGE_C = colors.HexColor("#4a7c3f")
-    LIGHT_C = colors.HexColor("#f5f2eb"); ALT_C = colors.HexColor("#f0ece3")
-    
-    def tbl_style(header_color=FOREST):
-        return TableStyle([
-            ("BACKGROUND",(0,0),(-1,0), header_color),
-            ("TEXTCOLOR",(0,0),(-1,0), colors.white),
-            ("FONTNAME",(0,0),(-1,-1), FONT),
-            ("FONTSIZE",(0,0),(-1,0), 8), ("FONTSIZE",(0,1),(-1,-1), 8),
-            ("FONTNAME",(0,0),(-1,0), FONT),
-            ("ROWBACKGROUNDS",(0,1),(-1,-1),[colors.white, ALT_C]),
-            ("GRID",(0,0),(-1,-1), 0.3, colors.HexColor("#E2DDD4")),
-            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-            ("LEFTPADDING",(0,0),(-1,-1),6), ("RIGHTPADDING",(0,0),(-1,-1),6),
-            ("TOPPADDING",(0,0),(-1,-1),4), ("BOTTOMPADDING",(0,0),(-1,-1),4),
-        ])
+    total_rev  = sum(d.total or 0 for d in won_deals)
+    total_exp  = sum(e.amount or 0 for e in expenses_q)
+    profit     = total_rev - total_exp
+    avg_check  = total_rev / len(won_deals) if won_deals else 0
+    win_rate   = round(len(won_deals) / len(deals_q) * 100, 1) if deals_q else 0
+    MONTHS     = ["Янв","Фев","Мар","Апр","Май","Июн","Июл","Авг","Сен","Окт","Ноя","Дек"]
 
-    def fmt_money(v): return f"{v:,.0f} руб.".replace(",","_")
+    def rub(v): return f"{float(v or 0):,.0f}\u202f₽".replace(",", "\u202f")
 
+    # ── цвета ─────────────────────────────────────────────────────────────────
+    C_DARK   = colors.HexColor("#1a3318")
+    C_GREEN  = colors.HexColor("#3d6b35")
+    C_SAGE   = colors.HexColor("#4a7c3f")
+    C_LIGHT  = colors.HexColor("#f5f2eb")
+    C_ALT    = colors.HexColor("#ede9e0")
+    C_WHITE  = colors.white
+    C_MUTED  = colors.HexColor("#8a8070")
+    C_BORDER = colors.HexColor("#d9d4c8")
+    C_RED    = colors.HexColor("#c0392b")
+
+    W = A4[0] - 4*cm   # полезная ширина страницы
+
+    # ── стили параграфов ──────────────────────────────────────────────────────
+    def ps(name, **kw):
+        d = dict(fontName=F, fontSize=9, leading=13, textColor=C_DARK)
+        d.update(kw); return ParagraphStyle(name, **d)
+
+    S_LOGO   = ps("logo",  fontSize=20, textColor=C_DARK,  leading=24, spaceAfter=2)
+    S_META   = ps("meta",  fontSize=8,  textColor=C_MUTED, spaceAfter=0)
+    S_H2     = ps("h2",    fontSize=10, textColor=C_GREEN,  spaceBefore=18, spaceAfter=5,
+                            borderPadding=(0,0,3,0))
+    S_BODY   = ps("body",  fontSize=8.5, leading=12)
+    S_FOOT   = ps("foot",  fontSize=7,  textColor=C_MUTED)
+    S_KPI_L  = ps("kpil",  fontSize=7,  textColor=C_MUTED, leading=10, spaceAfter=1)
+    S_KPI_V  = ps("kpiv",  fontSize=14, textColor=C_DARK,  leading=17, spaceAfter=0)
+    S_KPI_V2 = ps("kpiv2", fontSize=11, textColor=C_SAGE,  leading=14, spaceAfter=0)
+
+    # ── вспомогательные функции ───────────────────────────────────────────────
+    def make_table(rows, widths, hdr=C_DARK, repeat=1):
+        t = Table(rows, colWidths=widths, repeatRows=repeat)
+        t.setStyle(TableStyle([
+            ("BACKGROUND",    (0,0), (-1,0),  hdr),
+            ("TEXTCOLOR",     (0,0), (-1,0),  C_WHITE),
+            ("FONTNAME",      (0,0), (-1,-1), F),
+            ("FONTSIZE",      (0,0), (-1,0),  7.5),
+            ("FONTSIZE",      (0,1), (-1,-1), 8.5),
+            ("TOPPADDING",    (0,0), (-1,-1), 5),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 5),
+            ("LEFTPADDING",   (0,0), (-1,-1), 8),
+            ("RIGHTPADDING",  (0,0), (-1,-1), 8),
+            ("VALIGN",        (0,0), (-1,-1), "MIDDLE"),
+            ("LINEBELOW",     (0,0), (-1,0),  0.8, C_SAGE),
+            ("LINEBELOW",     (0,1), (-1,-1), 0.3, C_BORDER),
+            ("ROWBACKGROUNDS",(0,1), (-1,-1), [C_WHITE, C_ALT]),
+            ("BOX",           (0,0), (-1,-1), 0.5, C_BORDER),
+        ]))
+        return t
+
+    # ── шапка страницы ────────────────────────────────────────────────────────
     story = []
-    story.append(Paragraph(f"GrassCRM — Отчёт за {year} год", h1))
-    story.append(Paragraph(f"Сформирован: {date.today().strftime('%d.%m.%Y')}", normal))
-    story.append(Spacer(1, 12))
+    hdr_data = [[
+        Paragraph("GrassCRM", S_LOGO),
+        Paragraph(f"Отчёт за {year} год<br/><font color='#8a8070' size='8'>Сформирован {date.today().strftime('%d.%m.%Y')} · v2</font>", S_BODY)
+    ]]
+    hdr_t = Table(hdr_data, colWidths=[W*0.5, W*0.5])
+    hdr_t.setStyle(TableStyle([
+        ("FONTNAME",      (0,0), (-1,-1), F),
+        ("VALIGN",        (0,0), (-1,-1), "BOTTOM"),
+        ("ALIGN",         (1,0), (1,0),   "RIGHT"),
+        ("TOPPADDING",    (0,0), (-1,-1), 0),
+        ("BOTTOMPADDING", (0,0), (-1,-1), 0),
+    ]))
+    story.append(hdr_t)
+    story.append(HRFlowable(width=W, thickness=1.5, color=C_SAGE, spaceAfter=10, spaceBefore=6))
 
-    # Сводка
-    story.append(Paragraph("Сводка", h2))
-    summary_rows = [['Показатель','Значение'],
-        ["Всего сделок", str(len(deals_q))],
-        ["Успешных сделок", str(len(won_deals))],
-        ["Выручка", fmt_money(total_rev)],
-        ["Расходы", fmt_money(total_exp)],
-        ["Прибыль", fmt_money(total_rev-total_exp)],
-        ["Средний чек", fmt_money(avg_check)],
+    # ── KPI-плитки ────────────────────────────────────────────────────────────
+    def kpi(label, val, sub=None):
+        items = [Paragraph(label, S_KPI_L), Paragraph(val, S_KPI_V)]
+        if sub: items.append(Paragraph(sub, S_KPI_V2))
+        return items
+
+    kpi_rows = [
+        kpi("ВЫРУЧКА",      rub(total_rev)),
+        kpi("РАСХОДЫ",      rub(total_exp)),
+        kpi("ПРИБЫЛЬ",      rub(profit)),
+        kpi("СРЕДНИЙ ЧЕК",  rub(avg_check)),
     ]
-    t = Table(summary_rows, colWidths=[8*cm, 8*cm])
-    t.setStyle(tbl_style())
-    story.append(t); story.append(Spacer(1,8))
+    kpi_rows2 = [
+        kpi("СДЕЛОК ВСЕГО",      str(len(deals_q))),
+        kpi("КОНВЕРСИЯ",         f"{win_rate}%", f"успешных {len(won_deals)}"),
+        kpi("ПРОВАЛЕНО",         str(len(lost_deals))),
+        kpi("УНИКАЛЬНЫЕ КЛИЕНТЫ", str(len(set(d.contact_id for d in deals_q if d.contact_id)))),
+    ]
 
-    # Воронка
-    story.append(Paragraph("Воронка продаж", h2))
-    funnel_rows = [['Этап','Кол-во','Сумма','Конверсия']]
-    stage_list = sorted(stages.values(), key=lambda s: s.order)
-    first_cnt = None
-    for st in stage_list:
+    def kpi_table(data):
+        rows = [[item[0] for item in data], [item[1] for item in data],
+                [item[2] if len(item) > 2 else Paragraph("", S_KPI_V2) for item in data]]
+        t = Table(rows, colWidths=[W/4]*4)
+        t.setStyle(TableStyle([
+            ("FONTNAME",      (0,0), (-1,-1), F),
+            ("BACKGROUND",    (0,0), (-1,-1), C_LIGHT),
+            ("TOPPADDING",    (0,0), (-1,-1), 6),
+            ("BOTTOMPADDING", (0,0), (-1,-1), 6),
+            ("LEFTPADDING",   (0,0), (-1,-1), 12),
+            ("RIGHTPADDING",  (0,0), (-1,-1), 12),
+            ("LINEAFTER",     (0,0), (-2,-1), 0.5, C_BORDER),
+            ("BOX",           (0,0), (-1,-1), 0.5, C_BORDER),
+        ]))
+        return t
+
+    story.append(kpi_table(kpi_rows));  story.append(Spacer(1, 4))
+    story.append(kpi_table(kpi_rows2)); story.append(Spacer(1, 2))
+
+    # ── Помесячная динамика ───────────────────────────────────────────────────
+    story.append(Paragraph("Помесячная динамика", S_H2))
+    story.append(HRFlowable(width=W, thickness=0.5, color=C_BORDER, spaceAfter=4))
+    mrows = [["МЕСЯЦ", "ВЫРУЧКА", "РАСХОДЫ", "ПРИБЫЛЬ", "МАРЖА"]]
+    for i, mn in enumerate(MONTHS, 1):
+        mr = sum((d.total or 0) for d in won_deals if (d.closed_at or d.created_at).month == i)
+        me = sum((e.amount or 0) for e in expenses_q if e.date and e.date.month == i)
+        mg = f"{round((mr-me)/mr*100,1)}%" if mr else "—"
+        mrows.append([mn, rub(mr), rub(me), rub(mr-me), mg])
+    story.append(KeepTogether(make_table(mrows, [2.5*cm, 4.1*cm, 4.1*cm, 4.1*cm, 3.2*cm])))
+    story.append(Spacer(1, 4))
+
+    # ── Воронка ───────────────────────────────────────────────────────────────
+    story.append(Paragraph("Воронка продаж", S_H2))
+    story.append(HRFlowable(width=W, thickness=0.5, color=C_BORDER, spaceAfter=4))
+    frows = [["ЭТАП", "СДЕЛОК", "СУММА", "ДОЛЯ"]]
+    total_cnt = len(deals_q) or 1
+    for st in sorted(stages.values(), key=lambda s: s.order):
         cnt = sum(1 for d in deals_q if d.stage_id == st.id)
         amt = sum(d.total or 0 for d in deals_q if d.stage_id == st.id)
-        if first_cnt is None: first_cnt = cnt
-        conv = f"{round(cnt/first_cnt*100,1)}%" if first_cnt else "—"
-        funnel_rows.append([st.name, str(cnt), fmt_money(amt), conv])
-    t2 = Table(funnel_rows, colWidths=[7*cm,3*cm,5*cm,3*cm])
-    t2.setStyle(tbl_style(SAGE_C)); story.append(t2); story.append(Spacer(1,8))
+        frows.append([st.name, str(cnt), rub(amt), f"{round(cnt/total_cnt*100,1)}%"])
+    story.append(KeepTogether(make_table(frows, [8*cm, 2.8*cm, 5*cm, 2.2*cm], C_SAGE)))
+    story.append(Spacer(1, 4))
 
-    # Топ-10 сделок
-    story.append(Paragraph("Топ-10 успешных сделок", h2))
-    top10 = sorted(won_deals, key=lambda d: d.total or 0, reverse=True)[:10]
-    deal_rows = [['Название','Клиент','Сумма','Дата']]
-    for d in top10:
-        deal_rows.append([d.title[:35], contacts.get(d.contact_id, type("x",(),{"name":"—"})()).name,
-                         fmt_money(d.total or 0), d.closed_at.strftime("%d.%m.%Y") if d.closed_at else ""])
-    t3 = Table(deal_rows, colWidths=[7*cm,4*cm,4*cm,3*cm])
-    t3.setStyle(tbl_style()); story.append(t3)
+    # ── Топ-10 сделок ─────────────────────────────────────────────────────────
+    story.append(Paragraph("Топ-10 успешных сделок", S_H2))
+    story.append(HRFlowable(width=W, thickness=0.5, color=C_BORDER, spaceAfter=4))
+    drows = [["НАЗВАНИЕ", "КЛИЕНТ", "СУММА", "ЗАКРЫТА"]]
+    for d in sorted(won_deals, key=lambda x: x.total or 0, reverse=True)[:10]:
+        cname = contacts.get(d.contact_id, type("_",(),{"name":"—"})()).name
+        closed = d.closed_at.strftime("%d.%m.%y") if d.closed_at else "—"
+        drows.append([d.title[:38], cname[:22], rub(d.total or 0), closed])
+    if len(drows) == 1: drows.append(["Нет данных", "—", "—", "—"])
+    story.append(KeepTogether(make_table(drows, [8*cm, 4.5*cm, 3.5*cm, 2*cm])))
+    story.append(Spacer(1, 4))
 
+    # ── Расходы по категориям ─────────────────────────────────────────────────
+    story.append(Paragraph("Расходы по категориям", S_H2))
+    story.append(HRFlowable(width=W, thickness=0.5, color=C_BORDER, spaceAfter=4))
+    exp_by_cat: dict = {}
+    for e in expenses_q:
+        cat = e.category.name if e.category else "Без категории"
+        exp_by_cat[cat] = exp_by_cat.get(cat, 0) + (e.amount or 0)
+    crows = [["КАТЕГОРИЯ", "СУММА", "ДОЛЯ"]]
+    te = total_exp or 1
+    for cat, amt in sorted(exp_by_cat.items(), key=lambda x: x[1], reverse=True):
+        crows.append([cat, rub(amt), f"{round(amt/te*100,1)}%"])
+    if len(crows) == 1: crows.append(["Нет данных", rub(0), "0%"])
+    story.append(KeepTogether(make_table(crows, [9.5*cm, 5*cm, 3.5*cm], C_SAGE)))
+
+    # ── подвал ────────────────────────────────────────────────────────────────
+    story.append(Spacer(1, 20))
+    story.append(HRFlowable(width=W, thickness=0.5, color=C_BORDER, spaceAfter=4))
+    story.append(Paragraph(f"GrassCRM · crmpokos.ru · Отчёт {year} года", S_FOOT))
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+        leftMargin=2*cm, rightMargin=2*cm, topMargin=2*cm, bottomMargin=2*cm)
     doc.build(story)
     buf.seek(0)
-    headers = {"Content-Disposition": f'attachment; filename="grasscrm_{year}.pdf"'}
+    headers = {
+        "Content-Disposition": f'attachment; filename="grasscrm_{year}.pdf"',
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
     return StreamingResponse(buf, media_type="application/pdf", headers=headers)
 
 
@@ -1487,8 +2001,11 @@ ALLOWED_EXTENSIONS = {
     '.txt','.csv','.zip','.rar',
     '.mp4','.mov','.avi'
 }
+HAS_MULTIPART = importlib.util.find_spec("multipart") is not None
 
 def _fmt_size(b: int) -> str:
+    if b is None:
+        return "—"
     if b < 1024: return f"{b} Б"
     if b < 1024**2: return f"{b/1024:.1f} КБ"
     return f"{b/1024**2:.1f} МБ"
@@ -1496,54 +2013,66 @@ def _fmt_size(b: int) -> str:
 @app.get("/api/files")
 def get_files(contact_id: Optional[int] = None, deal_id: Optional[int] = None,
               db: DBSession = Depends(get_db), _=Depends(get_current_user)):
-    q = db.query(CRMFile).order_by(CRMFile.created_at.desc())
+    q = db.query(CRMFile).options(joinedload(CRMFile.contact), joinedload(CRMFile.deal)).order_by(CRMFile.created_at.desc())
     if contact_id: q = q.filter(CRMFile.contact_id == contact_id)
     if deal_id:    q = q.filter(CRMFile.deal_id == deal_id)
     return [{
-        "id": f.id, "filename": f.filename, "size": f.size,
+        "id": f.id, "filename": f.filename, "size": f.size or 0,
         "size_fmt": _fmt_size(f.size), "mime_type": f.mime_type,
         "contact_id": f.contact_id, "deal_id": f.deal_id,
         "uploaded_by_name": f.uploaded_by_name or "—",
+        "file_kind": f.file_kind or "general",
         "created_at": f.created_at.isoformat() if f.created_at else None,
         "contact_name": f.contact.name if f.contact else None,
         "deal_title": f.deal.title if f.deal else None,
     } for f in q.all()]
 
-@app.post("/api/files", status_code=201)
-async def upload_file(
-    file: UploadFile = FastAPIFile(...),
-    contact_id: Optional[int] = Form(None),
-    deal_id: Optional[int] = Form(None),
-    db: DBSession = Depends(get_db),
-    user: dict = Depends(get_current_user)
-):
-    ext = Path(file.filename).suffix.lower()
-    if ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(400, f"Тип файла не разрешён: {ext}")
+if HAS_MULTIPART:
+    @app.post("/api/files", status_code=201)
+    async def upload_file(
+        file: UploadFile = FastAPIFile(...),
+        contact_id: Optional[int] = Form(None),
+        deal_id: Optional[int] = Form(None),
+        file_kind: Optional[str] = Form(None),
+        db: DBSession = Depends(get_db),
+        user: dict = Depends(get_current_user)
+    ):
+        ext = Path(file.filename).suffix.lower()
+        if ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(400, f"Тип файла не разрешён: {ext}")
 
-    content = await file.read()
-    if len(content) > MAX_FILE_SIZE:
-        raise HTTPException(400, "Файл слишком большой (макс. 20 МБ)")
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(400, "Файл слишком большой (макс. 20 МБ)")
 
-    stored_name = f"{secrets.token_hex(12)}{ext}"
-    dest = UPLOAD_DIR / stored_name
-    dest.write_bytes(content)
+        stored_name = f"{secrets.token_hex(12)}{ext}"
+        dest = UPLOAD_DIR / stored_name
+        dest.write_bytes(content)
 
-    rec = CRMFile(
-        filename=file.filename,
-        stored_name=stored_name,
-        size=len(content),
-        mime_type=file.content_type,
-        contact_id=contact_id,
-        deal_id=deal_id,
-        uploaded_by=user.get("sub"),
-        uploaded_by_name=user.get("name"),
-    )
-    db.add(rec); db.commit(); db.refresh(rec)
-    return {
-        "id": rec.id, "filename": rec.filename, "size": rec.size,
-        "size_fmt": _fmt_size(rec.size), "mime_type": rec.mime_type,
-    }
+        kind = (file_kind or "").strip().lower() or "general"
+        if kind not in ("before", "after", "general"):
+            kind = "general"
+
+        rec = CRMFile(
+            filename=file.filename,
+            stored_name=stored_name,
+            size=len(content),
+            mime_type=file.content_type,
+            contact_id=contact_id,
+            deal_id=deal_id,
+            uploaded_by=user.get("sub"),
+            uploaded_by_name=user.get("name"),
+            file_kind=kind,
+        )
+        db.add(rec); db.commit(); db.refresh(rec)
+        return {
+            "id": rec.id, "filename": rec.filename, "size": rec.size,
+            "size_fmt": _fmt_size(rec.size), "mime_type": rec.mime_type,
+        }
+else:
+    @app.post("/api/files", status_code=503)
+    async def upload_file_unavailable(_=Depends(get_current_user)):
+        raise HTTPException(503, "Загрузка файлов временно недоступна: установите python-multipart")
 
 @app.get("/api/files/{file_id}/download")
 def download_file(file_id: int, db: DBSession = Depends(get_db), _=Depends(get_current_user)):
@@ -1619,6 +2148,8 @@ def service_status(db: DBSession = Depends(get_db), user: dict = Depends(get_cur
         "cache": {"keys": cache_keys, "count": len(cache_keys), "ttl": _cache._ttl},
         "system": system_payload,
         "tg_configured": bool(os.getenv("TELEGRAM_BOT_TOKEN") and os.getenv("TELEGRAM_CHAT_ID")),
+        "tg2_configured": bool(os.getenv("TELEGRAM_BOT2_TOKEN")),
+        "tg3_configured": bool(os.getenv("TELEGRAM_ASSISTANT_BOT_TOKEN")),
     }
 
 @app.post("/api/service/cache/clear")
@@ -1819,6 +2350,79 @@ def service_get_logs(n: int = 60, user: dict = Depends(get_current_user)):
     except Exception as e:
         return {"ok": False, "logs": str(e)}
 
+@app.post("/api/service/ai/ask")
+async def service_ai_ask(payload: ServiceAIAgentRequest, db: DBSession = Depends(get_db), user: dict = Depends(get_current_user)):
+    if not is_admin(user):
+        raise HTTPException(403, "Admin only")
+
+    base_url = (payload.base_url or OPENAI_BASE_URL or "").strip()
+    access_id = (payload.access_id or OPENAI_ACCESS_ID or "").strip()
+    model = (payload.model or OPENAI_MODEL or "gpt-4o-mini").strip()
+    if not base_url:
+        raise HTTPException(400, "Не задан OpenAI URL")
+    if not access_id:
+        raise HTTPException(400, "Не задан Access ID / API key")
+
+    if not base_url.startswith("http://") and not base_url.startswith("https://"):
+        base_url = f"https://{base_url}"
+
+    req_year = payload.year or datetime.utcnow().year
+    deals_q = db.query(Deal).filter(extract('year', Deal.created_at) == req_year).all()
+    expenses_q = db.query(Expense).filter(extract('year', Expense.date) == req_year).all()
+    stages = {s.id: s for s in db.query(Stage).all()}
+    won_ids = {s.id for s in stages.values() if s.is_final and "успешно" in (s.name or "").lower()}
+
+    won_deals = [d for d in deals_q if d.stage_id in won_ids]
+    total_rev = sum(d.total or 0 for d in won_deals)
+    total_exp = sum(e.amount or 0 for e in expenses_q)
+    profit = total_rev - total_exp
+    win_rate = round(len(won_deals) / len(deals_q) * 100, 1) if deals_q else 0
+
+    context = (
+        f"Год: {req_year}. Всего сделок: {len(deals_q)}. "
+        f"Успешных: {len(won_deals)} ({win_rate}%). "
+        f"Выручка: {total_rev:.2f}. Расходы: {total_exp:.2f}. Прибыль: {profit:.2f}."
+    )
+
+    system_prompt = (
+        "Ты AI-ассистент CRM для сервиса покоса и ландшафтных работ. "
+        "Отвечай строго на русском, коротко и по делу. "
+        "Если даешь рекомендации, разделяй их на: 1) быстрые шаги на 7 дней, "
+        "2) системные шаги на месяц."
+    )
+
+    payload_json = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Контекст CRM: {context}\n\nЗапрос: {payload.prompt}"},
+        ],
+        "temperature": 0.4,
+    }
+
+    url = f"{base_url.rstrip('/')}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {access_id}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            r = await client.post(url, json=payload_json, headers=headers)
+    except Exception as e:
+        raise HTTPException(502, f"Ошибка подключения к AI API: {e}")
+
+    if not r.is_success:
+        raise HTTPException(502, f"AI API {r.status_code}: {r.text[:300]}")
+
+    data = r.json()
+    text_out = ((data.get("choices") or [{}])[0].get("message") or {}).get("content", "").strip()
+    if not text_out:
+        raise HTTPException(502, "AI API вернул пустой ответ")
+
+    return {"ok": True, "answer": text_out, "model": model, "year": req_year}
+
+
 @app.post("/api/service/restart")
 def service_restart(user: dict = Depends(get_current_user)):
     if not is_admin(user): raise HTTPException(403, "Admin only")
@@ -1828,6 +2432,17 @@ def service_restart(user: dict = Depends(get_current_user)):
         _sp.Popen(["systemctl", "restart", "crm"])
     _th.Thread(target=_do, daemon=True).start()
     return {"ok": True, "message": "Перезапуск через 2 секунды…"}
+
+@app.get("/api/bot-faq")
+def get_bot_faq(db: DBSession = Depends(get_db), _=Depends(get_current_user)):
+    items = (db.query(BotFaq)
+             .filter(BotFaq.active == True)
+             .order_by(BotFaq.priority.desc())
+             .all())
+    return [
+        {"id": i.id, "intent": i.intent, "question_example": i.question_example, "answer": i.answer}
+        for i in items
+    ]
 
 @app.get("/{full_path:path}", response_class=FileResponse)
 async def serve_frontend(full_path: str):

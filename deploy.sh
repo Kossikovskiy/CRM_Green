@@ -1,22 +1,35 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# 1. Переходим в директорию проекта
-cd /var/www/crm/GCRM-2
+APP_DIR="/var/www/crm/GCRM-2"
+VENV="/var/www/crm/venv/bin/activate"
 
-# 2. Получаем последние изменения из Git
-git pull origin main
+echo "[1/7] Переход в директорию проекта: ${APP_DIR}"
+cd "${APP_DIR}"
 
-# 3. Устанавливаем права (!!!)
-echo "Setting permissions..."
-chmod +x start.sh
-chmod +x backup.sh # На всякий случай и для других скриптов
+echo "[2/7] Обновление кода из origin/main"
+git fetch origin main
+# Приводим рабочее дерево к точному состоянию origin/main
+# (не затрагивает .env, если он untracked)
+git reset --hard origin/main
 
-# 4. Устанавливаем/обновляем зависимости
-source /var/www/crm/venv/bin/activate
+COMMIT_SHA="$(git rev-parse --short HEAD)"
+echo "Текущий commit: ${COMMIT_SHA}"
+
+echo "[3/7] Установка прав на скрипты"
+chmod +x start.sh backup.sh deploy.sh
+
+echo "[4/7] Установка/обновление зависимостей"
+source "${VENV}"
 pip install -r requirements.txt
 
-# 5. Перезапускаем сервис, чтобы применить изменения
-echo "Restarting service..."
+echo "[5/7] Перезапуск сервисов"
 systemctl restart crm
+systemctl restart greencrm-bot
 
-echo "Deployment finished!"
+echo "[6/7] Проверка статуса сервисов"
+systemctl is-active --quiet crm || { echo "❌ crm не запустился"; systemctl status crm --no-pager -n 80; exit 1; }
+systemctl is-active --quiet greencrm-bot || { echo "❌ greencrm-bot не запустился"; systemctl status greencrm-bot --no-pager -n 80; exit 1; }
+
+echo "[7/7] Готово"
+echo "✅ Деплой завершен. commit=${COMMIT_SHA}"
