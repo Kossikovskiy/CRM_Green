@@ -98,12 +98,12 @@ TELEGRAM_ASSISTANT_BOT_TOKEN=...        # личный AI-ассистент (as
 | | |
 |---|---|
 | Сервер | VPS Timeweb Cloud, Ubuntu 24.04 |
-| IP | 77.232.134.112 |
+| IP |  |
 | Путь | `/var/www/crm/GCRM-2` |
 | Venv | `/var/www/crm/venv` |
 | Порт | 127.0.0.1:8000 (за nginx/proxy) |
-| Домен CRM | crmpokos.ru |
-| Домен сайта | покос-ропша.рф → `/var/www/site` |
+| Домен CRM |  |
+| Домен сайта |  → `/var/www/site` |
 
 ### Деплой новой версии
 
