@@ -1,0 +1,14 @@
+# /etc/systemd/system/crm-archive.timer
+# Запускает crm-archive.service каждый час
+
+[Unit]
+Description=GrassCRM — таймер архивных сделок
+Requires=crm.service
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=1h
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

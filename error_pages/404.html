@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>404 — GrassCRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'DM Sans',sans-serif;
+  background:#1a3318;
+  background-image:
+    radial-gradient(ellipse 120% 80% at 10% 110%,rgba(74,124,63,.3) 0%,transparent 55%),
+    radial-gradient(ellipse 70% 50% at 90% -10%,rgba(122,181,102,.12) 0%,transparent 50%);
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;color:#fff;
+}
+.box{
+  position:relative;text-align:center;padding:64px 56px;
+  max-width:480px;width:100%;
+}
+.box::before,.box::after{
+  content:'';position:absolute;
+  border:1px solid rgba(122,181,102,.18);border-radius:4px;pointer-events:none;
+}
+.box::before{inset:0}
+.box::after{inset:8px;border-color:rgba(122,181,102,.08)}
+.eyebrow{
+  font-size:9px;letter-spacing:4px;text-transform:uppercase;
+  color:rgba(122,181,102,.6);font-weight:500;margin-bottom:20px;
+}
+.code{
+  font-family:'Playfair Display',serif;
+  font-size:96px;font-weight:400;color:#fff;
+  letter-spacing:-4px;line-height:1;margin-bottom:4px;
+  opacity:.15;position:absolute;top:24px;left:50%;transform:translateX(-50%);
+  white-space:nowrap;pointer-events:none;
+}
+.logo{
+  font-family:'Playfair Display',serif;
+  font-size:48px;font-weight:400;color:#fff;
+  letter-spacing:-1px;line-height:1;margin-bottom:6px;
+  position:relative;z-index:1;
+}
+.logo em{font-style:italic;color:#7ab566}
+.rule{
+  width:40px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(122,181,102,.5),transparent);
+  margin:20px auto;
+}
+.title{
+  font-family:'Playfair Display',serif;font-style:italic;
+  font-size:20px;color:rgba(255,255,255,.7);margin-bottom:8px;
+}
+.sub{
+  font-size:11px;letter-spacing:2px;text-transform:uppercase;
+  color:rgba(255,255,255,.28);margin-bottom:40px;
+}
+.btn{
+  display:inline-flex;align-items:center;gap:12px;
+  border:1px solid rgba(122,181,102,.35);color:rgba(255,255,255,.75);
+  font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;
+  letter-spacing:2px;text-transform:uppercase;
+  padding:13px 36px;border-radius:3px;text-decoration:none;
+  transition:all .3s ease;background:rgba(122,181,102,.05);
+}
+.btn:hover{border-color:rgba(122,181,102,.7);background:rgba(122,181,102,.12);color:#fff;gap:18px}
+.btn span{transition:transform .3s}
+.btn:hover span:last-child{transform:translateX(4px)}
+</style>
+</head>
+<body>
+<div class="box">
+  <div class="code">404</div>
+  <div class="eyebrow">Ошибка навигации</div>
+  <div class="logo">Grass<em>CRM</em></div>
+  <div class="rule"></div>
+  <div class="title">Страница не найдена</div>
+  <div class="sub">Возможно, адрес устарел или был удалён</div>
+  <a class="btn" href="/"><span>← Вернуться</span><span>→</span></a>
+</div>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# /etc/systemd/system/crm-repeats.timer
+# Запускает crm-repeats.service каждый час
+
+[Unit]
+Description=GrassCRM — таймер повторных сделок
+Requires=crm.service
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=1h
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

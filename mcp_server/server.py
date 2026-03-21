@@ -1,5 +1,5 @@
 """
-MCP-сервер для CRM бизнеса по покосу травы
+MCP-сервер для CRM бизнеса по покосу травы — v1.1
 Запуск: python mcp_server/server.py
 """
 
@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import mcp.server.stdio
 import mcp.types as types
 from mcp.server import Server
-from sqlalchemy import extract, func, and_
+from sqlalchemy import extract, func, and_, text
 
 from models.database import (
     get_engine, get_session_factory, init_db,
@@ -327,6 +327,7 @@ async def list_tools() -> list[types.Tool]:
 async def call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     with Session() as session:
         try:
+            session.execute(text("SET LOCAL ROLE postgres"))
             return await _dispatch(name, arguments, session)
         except Exception as e:
             return _err(f"Ошибка при выполнении {name}: {e}")

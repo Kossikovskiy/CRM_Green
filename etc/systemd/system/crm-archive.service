@@ -1,0 +1,17 @@
+# /etc/systemd/system/crm-archive.service
+# Переводит истёкшие архивные сделки (30+ дней) в финальный этап
+
+[Unit]
+Description=GrassCRM — проверка архивных сделок
+After=network.target crm.service
+Requires=crm.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/bin/curl -sf \
+    -H "X-Internal-API-Key: ${INTERNAL_API_KEY}" \
+    http://127.0.0.1:8000/api/service/run-archive
+EnvironmentFile=/etc/crm/.env
+StandardOutput=journal
+StandardError=journal
