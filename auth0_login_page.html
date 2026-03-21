@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>GrassCRM · Вход</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --forest: #1a3318;
+      --moss:   #2d5426;
+      --fern:   #4a7c3f;
+      --sage:   #7ab566;
+      --ink:    #1c211a;
+      --red:    #8b3a2a;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      background: var(--forest);
+      color: #fff;
+      overflow: hidden;
+    }
+
+    /* ── ФОН ─────────────────────────────────── */
+    #login-screen {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--forest);
+      background-image:
+        radial-gradient(ellipse 140% 90% at 5% 115%,  rgba(74,124,63,.35)  0%, transparent 55%),
+        radial-gradient(ellipse 60%  45% at 95%  -5%,  rgba(122,181,102,.12) 0%, transparent 50%);
+    }
+
+    /* ── КАРТОЧКА ─────────────────────────────── */
+    .login-card {
+      position: relative;
+      z-index: 1;
+      width: 400px;
+      max-width: calc(100vw - 32px);
+      padding: 48px 44px 40px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(122,181,102,.18);
+      border-radius: 4px;
+    }
+    .login-card::after {
+      content: '';
+      position: absolute;
+      inset: 6px;
+      border: 1px solid rgba(122,181,102,.07);
+      border-radius: 2px;
+      pointer-events: none;
+    }
+
+    /* ── ШАПКА ────────────────────────────────── */
+    .login-eyebrow {
+      font-size: 9px;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(122,181,102,.55);
+      font-weight: 500;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .login-logo {
+      font-family: 'Playfair Display', serif;
+      font-size: 50px;
+      font-weight: 400;
+      color: #fff;
+      letter-spacing: -1.5px;
+      line-height: 1;
+      text-align: center;
+    }
+    .login-logo em { font-style: italic; color: var(--sage); }
+    .login-rule {
+      width: 36px; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(122,181,102,.5), transparent);
+      margin: 14px auto;
+    }
+    .login-sub {
+      font-size: 10px;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: rgba(255,255,255,.2);
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    /* ── КНОПКА ЯНДЕКС ────────────────────────── */
+    .btn-yandex {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 13px 20px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(122,181,102,.25);
+      border-radius: 3px;
+      color: rgba(255,255,255,.85);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: .3px;
+      cursor: pointer;
+      transition: background .2s, border-color .2s, color .2s;
+    }
+    .btn-yandex:hover {
+      background: rgba(122,181,102,.1);
+      border-color: rgba(122,181,102,.45);
+      color: #fff;
+    }
+    .btn-yandex:active { transform: scale(.99); }
+
+    .yandex-icon { width: 20px; height: 20px; flex-shrink: 0; }
+
+    /* ── РАЗДЕЛИТЕЛЬ ──────────────────────────── */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+      color: rgba(255,255,255,.2);
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(122,181,102,.15);
+    }
+
+    /* ── ПОЛЯ ФОРМЫ ───────────────────────────── */
+    .field { position: relative; margin-bottom: 12px; }
+    .field-icon {
+      position: absolute;
+      left: 13px; top: 50%;
+      transform: translateY(-50%);
+      width: 16px; height: 16px;
+      opacity: .35;
+      pointer-events: none;
+    }
+    .field input {
+      width: 100%;
+      padding: 13px 14px 13px 40px;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(122,181,102,.2);
+      border-radius: 3px;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+      outline: none;
+      transition: background .2s, border-color .2s;
+    }
+    .field input::placeholder { color: rgba(255,255,255,.3); font-weight: 300; }
+    .field input:focus {
+      background: rgba(255,255,255,.10);
+      border-color: rgba(122,181,102,.5);
+    }
+
+    /* ── ССЫЛКА ЗАБЫЛИ ПАРОЛЬ ─────────────────── */
+    .forgot {
+      display: block;
+      text-align: right;
+      font-size: 12px;
+      color: rgba(255,255,255,.35);
+      text-decoration: none;
+      margin-bottom: 16px;
+      transition: color .2s;
+    }
+    .forgot:hover { color: rgba(122,181,102,.8); }
+
+    /* ── КНОПКА ВОЙТИ ─────────────────────────── */
+    .btn-submit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 14px 20px;
+      background: var(--sage);
+      border: none;
+      border-radius: 3px;
+      color: var(--ink);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background .2s, color .2s, transform .15s;
+    }
+    .btn-submit:hover { background: var(--fern); color: #fff; }
+    .btn-submit:active { transform: scale(.99); }
+    .btn-submit svg { transition: transform .2s; }
+    .btn-submit:hover svg { transform: translateX(3px); }
+
+    /* ── ОШИБКА ───────────────────────────────── */
+    .error-msg {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: rgba(139,58,42,.15);
+      border: 1px solid rgba(139,58,42,.35);
+      border-radius: 3px;
+      color: #ff9a8a;
+      font-size: 12px;
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      line-height: 1.4;
+    }
+    .error-msg.visible { display: flex; }
+
+    /* ── СПИННЕР ──────────────────────────────── */
+    .spinner {
+      display: none;
+      width: 14px; height: 14px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .6s linear infinite;
+    }
+    .btn-submit.loading .spinner { display: block; }
+    .btn-submit.loading .btn-label,
+    .btn-submit.loading .btn-arrow { display: none; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── МОБИЛЬНАЯ АДАПТАЦИЯ ──────────────────── */
+    @media (max-width: 480px) {
+      .login-card { padding: 36px 24px 28px; }
+      .login-logo { font-size: 40px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="login-screen">
+    <div class="login-card">
+
+      <div class="login-eyebrow">Система управления бизнесом</div>
+      <div class="login-logo">Grass<em>CRM</em></div>
+      <div class="login-rule"></div>
+      <div class="login-sub">Покос и благоустройство</div>
+
+      <!-- Яндекс -->
+      <button class="btn-yandex" id="btn-yandex" type="button">
+        <svg class="yandex-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <rect width="24" height="24" rx="4" fill="#FC3F1D"/>
+          <path d="M13.706 19H15.9V5h-3.522C8.845 5 7 6.736 7 9.242c0 2.01.989 3.264 2.8 4.435L6.5 19h2.377l3.573-5.986-.924-.56C10.264 11.54 9.45 10.65 9.45 9.14c0-1.657 1.1-2.567 2.97-2.567h1.286V19z" fill="white"/>
+        </svg>
+        Войти через Яндекс
+      </button>
+
+      <div class="divider">или</div>
+
+      <!-- Ошибка -->
+      <div class="error-msg" id="error-msg">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span id="error-text">Неверный email или пароль</span>
+      </div>
+
+      <!-- Email -->
+      <div class="field">
+        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8">
+          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+          <polyline points="22,6 12,13 2,6"/>
+        </svg>
+        <input type="email" id="input-email" placeholder="Email" autocomplete="email" />
+      </div>
+
+      <!-- Пароль -->
+      <div class="field">
+        <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.8">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        <input type="password" id="input-password" placeholder="Пароль" autocomplete="current-password" />
+      </div>
+
+      <a href="#" class="forgot" id="link-forgot">Забыли пароль?</a>
+
+      <button class="btn-submit" id="btn-submit" type="button">
+        <span class="spinner"></span>
+        <span class="btn-label">Войти</span>
+        <svg class="btn-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </button>
+
+    </div>
+  </div>
+
+  <!--[if lte IE 9]>
+  <script src="https://cdn.auth0.com/js/base64.js"></script>
+  <script src="https://cdn.auth0.com/js/es5-shim.min.js"></script>
+  <![endif]-->
+  <script src="https://cdn.auth0.com/js/lock/14.2.3/lock.min.js"></script>
+
+  <script>
+    var config = JSON.parse(decodeURIComponent(escape(window.atob('@@config@@'))));
+    config.extraParams = config.extraParams || {};
+
+    var loginHint = config.extraParams.login_hint;
+
+    // Lock — только как auth-клиент, свой UI НЕ показываем (нет container и нет lock.show())
+    var lock = new Auth0Lock(config.clientID, config.auth0Domain, {
+      auth: {
+        redirectUrl:  config.callbackURL,
+        responseType: (config.internalOptions || {}).response_type ||
+                      (config.callbackOnLocationHash ? 'token' : 'code'),
+        params: config.internalOptions
+      },
+      configurationBaseUrl: config.clientConfigurationBaseUrl,
+      overrides: {
+        __tenant:       config.auth0Tenant,
+        __token_issuer: config.authorizationServer.issuer
+      },
+      assetsUrl:         config.assetsUrl,
+      rememberLastLogin: !config.prompt,
+      language:          (typeof config.dict === 'string') ? config.dict : undefined,
+      languageBaseUrl:   config.languageBaseUrl,
+      languageDictionary: { title: '' },
+      theme:             { primaryColor: '#7ab566' },
+      prefill:           loginHint ? { email: loginHint, username: loginHint } : null,
+      closable:          false,
+      defaultADUsernameFromEmailPrefix: false
+      // container — не указываем, UI Lock не появится
+    });
+
+    // ── УТИЛИТЫ ───────────────────────────────────────
+    function showError(msg) {
+      document.getElementById('error-text').textContent = msg || 'Неверный email или пароль';
+      document.getElementById('error-msg').classList.add('visible');
+    }
+    function hideError() {
+      document.getElementById('error-msg').classList.remove('visible');
+    }
+    function setLoading(on) {
+      document.getElementById('btn-submit').classList.toggle('loading', on);
+    }
+
+    // ── ЯНДЕКС ────────────────────────────────────────
+    document.getElementById('btn-yandex').addEventListener('click', function() {
+      lock.authorize({ connection: 'yandex' });
+    });
+
+    // ── EMAIL / ПАРОЛЬ ─────────────────────────────────
+    function doLogin() {
+      hideError();
+      var email    = document.getElementById('input-email').value.trim();
+      var password = document.getElementById('input-password').value;
+
+      if (!email || !password) {
+        showError('Введите email и пароль');
+        return;
+      }
+
+      setLoading(true);
+
+      lock.login({
+        realm:    'Username-Password-Authentication',
+        username: email,
+        password: password
+      }, function(err) {
+        setLoading(false);
+        if (err) {
+          var msg = err.description || err.message || 'Ошибка входа';
+          if (/wrong email or password/i.test(msg) || /invalid/i.test(msg)) {
+            msg = 'Неверный email или пароль';
+          } else if (/too many/i.test(msg)) {
+            msg = 'Слишком много попыток. Попробуйте позже';
+          } else if (/network/i.test(msg)) {
+            msg = 'Нет соединения. Проверьте интернет';
+          }
+          showError(msg);
+        }
+      });
+    }
+
+    document.getElementById('btn-submit').addEventListener('click', doLogin);
+
+    document.getElementById('input-email').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') document.getElementById('input-password').focus();
+    });
+    document.getElementById('input-password').addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') doLogin();
+    });
+
+    // ── ЗАБЫЛИ ПАРОЛЬ ──────────────────────────────────
+    document.getElementById('link-forgot').addEventListener('click', function(e) {
+      e.preventDefault();
+      var email = document.getElementById('input-email').value.trim();
+      // Lock открывает свой экран сброса пароля поверх нашего
+      lock.show({ initialScreen: 'forgotPassword', prefill: email ? { email: email } : null });
+    });
+
+    // prefill если передан
+    if (loginHint) {
+      document.getElementById('input-email').value = loginHint;
+    }
+  </script>
+</body>
+</html>

@@ -1,3 +1,4 @@
+<!-- GrassCRM index.html v2.7 -->
 <!DOCTYPE html>
 <html lang="ru" data-theme="light">
 <head>
@@ -11,10 +12,11 @@
 .flatpickr-calendar{font-family:'DM Sans',sans-serif!important;border-radius:10px!important;border:1px solid var(--border)!important;box-shadow:var(--sh-l)!important;background:var(--surface)!important}
 .flatpickr-day.selected,.flatpickr-day.selected:hover{background:var(--sage)!important;border-color:var(--sage)!important;color:#fff!important}
 .flatpickr-day:hover{background:var(--leaf)!important;color:var(--ink)!important}
-.flatpickr-months,.flatpickr-month{background:var(--surface2)!important;color:var(--ink)!important;fill:var(--ink)!important}
-.flatpickr-current-month,.flatpickr-monthDropdown-months{color:var(--ink)!important;font-weight:600}
+.flatpickr-months,.flatpickr-month{background:var(--surface2)!important;color:var(--ink)!important;fill:var(--ink)!important;border-radius:10px 10px 0 0!important}
+.flatpickr-current-month,.flatpickr-monthDropdown-months{color:var(--ink)!important;font-weight:600;font-family:'Playfair Display',serif!important;font-size:15px!important}
+.flatpickr-current-month input.cur-year{font-family:'Playfair Display',serif!important;font-weight:600!important;color:var(--ink)!important}
 .flatpickr-weekday{color:var(--ink3)!important}
-.flatpickr-day{color:var(--ink2)!important}
+.flatpickr-day{color:var(--ink2)!important;border-radius:7px!important}
 .flatpickr-day.today{border-color:var(--sage)!important}
 .flatpickr-prev-month,.flatpickr-next-month{fill:var(--ink)!important}
 html[data-theme=dark] .flatpickr-calendar{background:var(--surface)!important;border-color:var(--border)!important}
@@ -42,6 +44,27 @@ html[data-theme="dark"]{
   --gold:#c8952a;--red:#c85040;--blue:#4a80c0;
   --sh-s:0 1px 4px rgba(0,0,0,.3);--sh-m:0 4px 20px rgba(0,0,0,.4);--sh-l:0 12px 48px rgba(0,0,0,.5);
 }
+/* ── ELECTRIC THEME ── */
+html[data-project="electric"]{
+  --bg:#f0f4f8;--surface:#f8fafc;--surface2:#e8eef5;
+  --border:#d0dae6;--border2:#dce5ef;
+  --forest:#0d2137;--moss:#1a3a5c;--fern:#2563a8;--sage:#4a8fd4;--sage2:#93c4ef;--leaf:#d0e7f8;
+  --ink:#0f1e2d;--ink2:#3a5068;--ink3:#7a90a4;--ink4:#b0c0d0;
+  --gold:#b07d2c;--red:#8b3a2a;--blue:#2a5280;
+  --sh-s:0 1px 4px rgba(13,33,55,.07);--sh-m:0 4px 20px rgba(13,33,55,.10);--sh-l:0 12px 48px rgba(13,33,55,.14);
+}
+html[data-project="electric"][data-theme="dark"]{
+  --bg:#080e18;--surface:#0d1520;--surface2:#111d2c;
+  --border:#1a2d42;--border2:#152438;
+  --forest:#060c14;--moss:#0f1e30;--fern:#3a7acc;--sage:#5a9ae0;--sage2:#2a5a9a;--leaf:#0d2040;
+  --ink:#d8e8f5;--ink2:#8aaac8;--ink3:#4a6a88;--ink4:#2a3a50;
+}
+/* Переключатель проекта */
+.project-switcher{display:none;align-items:center;gap:0;background:rgba(0,0,0,.15);border-radius:8px;padding:2px;margin-right:4px}
+.project-switcher.visible{display:flex}
+.proj-btn{border:none;background:transparent;color:rgba(255,255,255,.6);font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;letter-spacing:.4px;padding:5px 11px;border-radius:6px;cursor:pointer;transition:all .18s;white-space:nowrap}
+.proj-btn.active{background:rgba(255,255,255,.18);color:#fff}
+.proj-btn:hover:not(.active){color:rgba(255,255,255,.85)}
 html{scroll-behavior:smooth}
 body{font-family:'DM Sans',sans-serif;font-weight:400;background:var(--bg);color:var(--ink);min-height:100vh;overflow-x:hidden}
 ::-webkit-scrollbar{width:5px;height:5px}
@@ -126,6 +149,9 @@ nav button::after{display:none}
 .hbtn:hover{background:rgba(255,255,255,.1);color:rgba(255,255,255,.85);border-color:rgba(255,255,255,.18)}
 
 /* ── MOBILE ──────────────────────────────────────────────────── */
+/* Bottom tab bar */
+#mobile-tabbar{display:none}
+/* Drawer for secondary nav */
 #mobile-nav{display:none}
 #mobile-menu-btn{display:none}
 #mobile-nav-overlay{display:none;position:fixed;inset:0;z-index:390;background:rgba(0,0,0,.5);backdrop-filter:blur(3px);opacity:0;pointer-events:none;transition:opacity .25s}
@@ -149,30 +175,68 @@ nav button::after{display:none}
     touch-action:manipulation;-webkit-tap-highlight-color:transparent;flex-shrink:0;
   }
 
+  /* ── TOP NAV STRIP (always visible, below header) ── */
+  #mobile-tabbar{
+    display:flex;
+    position:fixed;
+    top:var(--hh);left:0;right:0;
+    z-index:490;
+    background:var(--forest);
+    border-bottom:1px solid rgba(74,124,63,.25);
+    padding:0 6px;
+    gap:0;
+    height:44px;
+  }
+  .mtab-btn{
+    flex:1;
+    display:flex;flex-direction:row;align-items:center;justify-content:center;
+    background:transparent;border:none;
+    color:rgba(255,255,255,.5);
+    font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;
+    letter-spacing:.2px;
+    padding:0 4px;gap:5px;
+    height:44px;
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+    transition:color .15s;cursor:pointer;
+    user-select:none;-webkit-user-select:none;
+    white-space:nowrap;
+  }
+  .mtab-btn svg{width:16px;height:16px;flex-shrink:0}
+  .mtab-btn .mtab-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+  .mtab-btn.active{color:#fff;border-bottom:2px solid var(--sage)}
+  .mtab-btn:active{opacity:.7}
+  #mtab-more-btn.drawer-open{color:var(--sage)}
+
+  /* ── DRAWER (secondary nav, slides down from header) ── */
   #mobile-nav{
     display:block;
     position:fixed !important;
-    bottom:0 !important;
+    top:calc(var(--hh) + var(--topnav, 0px)) !important;
     left:0;right:0;
     z-index:9999;
     background:var(--forest);
-    border-top:1px solid rgba(74,124,63,.35);
-    border-radius:20px 20px 0 0;
-    box-shadow:0 -12px 40px rgba(0,0,0,.5);
-    transform:translateY(100%);
-    transition:transform .3s cubic-bezier(.4,0,.2,1);
-    padding:0 10px calc(8px + env(safe-area-inset-bottom)) 10px;
-    /* Никакого overflow — всё должно помещаться на экране */
+    border-bottom:1px solid rgba(74,124,63,.35);
+    border-radius:0 0 20px 20px;
+    box-shadow:0 12px 40px rgba(0,0,0,.5);
+    transform:translateY(-110%);
+    transition:transform .3s cubic-bezier(.4,0,.2,1), visibility 0s .3s;
+    padding:10px 10px 12px 10px;
+    visibility:hidden;
+    pointer-events:none;
   }
-  #mobile-nav.open{transform:translateY(0) !important}
-  #mobile-nav-handle{width:36px;height:4px;background:rgba(255,255,255,.18);border-radius:2px;margin:10px auto 8px}
-  /* 4 колонки × 4 ряда = 16 кнопок, компактно */
+  #mobile-nav.open{
+    transform:translateY(0) !important;
+    visibility:visible;
+    pointer-events:auto;
+    transition:transform .3s cubic-bezier(.4,0,.2,1), visibility 0s 0s;
+  }
+  #mobile-nav-handle{display:none}
+  #mobile-nav-top{display:none}
   #mobile-nav-grid{
     display:grid;
     grid-template-columns:repeat(4,1fr);
     gap:5px;
   }
-
   #mobile-nav button{
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     background:rgba(255,255,255,.04);
@@ -182,7 +246,6 @@ nav button::after{display:none}
     font-family:'DM Sans',sans-serif;font-size:8px;font-weight:500;
     letter-spacing:.2px;text-transform:uppercase;
     padding:8px 2px 7px;gap:4px;
-    /* Фиксированная высота чтобы 4 ряда всегда помещались */
     height:56px;width:100%;
     touch-action:manipulation;-webkit-tap-highlight-color:transparent;
     transition:background .12s,color .12s,border-color .12s,transform .1s;
@@ -192,8 +255,25 @@ nav button::after{display:none}
   #mobile-nav button .mnav-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
   #mobile-nav button.active{color:var(--sage);background:rgba(122,181,102,.14);border-color:rgba(122,181,102,.35)}
   #mobile-nav button:active{transform:scale(.93);background:rgba(122,181,102,.22)}
+  /* Кнопки переключателя проекта */
+  .mnav-proj-btn{
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+    border-radius:10px;color:rgba(255,255,255,.5);
+    font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;
+    letter-spacing:.3px;padding:8px 6px;gap:4px;
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+    transition:background .12s,color .12s,border-color .12s;cursor:pointer;
+  }
+  .mnav-proj-btn.active{color:#fff;background:rgba(122,181,102,.25);border-color:rgba(122,181,102,.5)}
+  html[data-project="electric"] .mnav-proj-btn.active{background:rgba(250,204,21,.2);border-color:rgba(250,204,21,.4);color:#fde047}
 
+  :root{--bnav:0px;--topnav:44px}
+  #page-calendar.active{height:calc(100vh - var(--hh) - var(--topnav));overflow:hidden}
+  #mobile-tabbar{display:flex}
   body{padding-bottom:0}
+  header{position:fixed !important;top:0;left:0;right:0;z-index:600}
+  #app{padding-top:calc(var(--hh) + var(--topnav))}
   .page{padding:20px 16px 40px}
   .ph{margin-bottom:20px}
   .ph-title{font-size:28px}
@@ -232,6 +312,9 @@ nav button::after{display:none}
 /* ── PAGES ─────────────────────────────────────────────────── */
 .page{display:none;padding:40px 44px;min-height:calc(100vh - var(--hh) - var(--bnav));animation:pageIn .32s ease both}
 .page.active{display:block}
+/* Calendar page: full height flex to avoid double scrollbar */
+#page-calendar{padding-bottom:0}
+#page-calendar.active{display:flex;flex-direction:column;height:calc(100vh - var(--hh) - var(--bnav));overflow:hidden}
 @keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
 .page-grid{display:grid;grid-template-columns:1fr 2fr;gap:24px;}
 
@@ -388,7 +471,16 @@ html[data-theme="dark"] .k-placeholder{background:var(--surface2)}
   min-width:0;overflow:hidden
 }
 .dash-task-card:hover{background:var(--leaf);border-color:var(--sage)}
-.dash-task-card.overdue{border-left-color:#ef4444 !important}
+.dash-task-card.overdue{border-left-color:#ef4444 !important;animation:overdue-pulse 2.4s ease-in-out infinite}
+@keyframes overdue-pulse{
+  0%,100%{background:var(--surface);box-shadow:none}
+  50%{background:#fecaca;box-shadow:0 0 0 2px #f87171}
+}
+html[data-theme=dark] .dash-task-card.overdue{animation:overdue-pulse-dark 2.4s ease-in-out infinite}
+@keyframes overdue-pulse-dark{
+  0%,100%{background:var(--surface);box-shadow:none}
+  50%{background:#2d1515;box-shadow:0 0 0 2px #7f1d1d}
+}
 .dash-task-check{padding-top:1px}
 .dash-task-check input[type=checkbox]{width:15px;height:15px;cursor:pointer;accent-color:var(--sage)}
 .dash-task-body{flex:1;min-width:0}
@@ -449,6 +541,24 @@ html[data-theme="dark"] .k-placeholder{background:var(--surface2)}
   transition:transform .28s cubic-bezier(.34,1.2,.64,1);
   max-height:92vh;overflow-y:auto;
 }
+/* Широкая модалка сделки */
+.deal-modal-wide{max-width:min(1300px,98vw);padding:24px 28px}
+.deal-modal-header{display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--border2)}
+.deal-modal-header-btns{display:flex;gap:8px;align-items:center;flex-shrink:0;margin-left:auto}
+.deal-modal-body{display:grid;grid-template-columns:2fr 3fr;gap:24px;align-items:start}
+.deal-modal-left{display:flex;flex-direction:column;gap:0}
+.deal-modal-right{display:flex;flex-direction:column;gap:0}
+.deal-tabs-nav{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border2);padding-bottom:0}
+.deal-tab-btn{background:none;border:none;border-bottom:2px solid transparent;padding:8px 14px;font-size:12px;font-family:inherit;color:var(--ink3);cursor:pointer;transition:all .2s;margin-bottom:-1px;border-radius:0}
+.deal-tab-btn:hover{color:var(--ink)}
+.deal-tab-btn.active{color:var(--sage);border-bottom-color:var(--sage);font-weight:600}
+.deal-tab-panel{display:none}
+.deal-tab-panel.active{display:block}
+@media(max-width:800px){
+  .deal-modal-body{grid-template-columns:1fr}
+  .deal-modal-header{gap:10px}
+  .deal-modal-header-btns{width:100%;margin-left:0}
+}
 .overlay.open .modal{transform:none}
 .modal-title{font-family:'Playfair Display',serif;font-size:26px;font-weight:400;color:var(--ink);margin-bottom:24px}
 .modal-title em{font-style:italic;color:var(--fern)}
@@ -468,7 +578,7 @@ html[data-theme="dark"] .k-placeholder{background:var(--surface2)}
 .btn-del-modal{margin-right:auto;border-color:var(--red);color:var(--red)}
 .btn-del-modal:hover{background:var(--red);color:#fff}
 
-#d-services-block{margin-top:20px;border-top:1px solid var(--border2);padding-top:20px}
+#d-services-block{margin-top:0}
 #d-services-table th,#m-consumables-table th{font-size:8px;padding:8px 10px}
 #d-services-table td,#m-consumables-table td{font-size:11px;padding:8px 10px}
 #d-services-table .btn-del,#m-consumables-table .btn-del{cursor:pointer;color:var(--red);border:none;background:none;font-size:14px}
@@ -664,7 +774,8 @@ html[data-theme="dark"] .k-placeholder{background:var(--surface2)}
 /* funnel bars */
 .funnel-bar-wrap{margin-bottom:14px}
 .funnel-bar-label{display:flex;justify-content:space-between;font-size:11px;color:var(--ink2);margin-bottom:5px}
-.funnel-bar-label strong{font-family:'Playfair Display',serif;font-size:13px;color:var(--ink)}
+.funnel-bar-label strong{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;color:var(--ink)}
+.funnel-bar-label span{font-size:12px;color:var(--ink);font-weight:500}
 .funnel-bar-track{height:26px;background:var(--surface2);border-radius:6px;overflow:hidden}
 .funnel-bar-fill{height:100%;border-radius:6px;transition:width .65s cubic-bezier(.34,1.1,.64,1);display:flex;align-items:center;padding-left:10px}
 .funnel-bar-fill span{font-size:11px;color:#fff;font-weight:500;white-space:nowrap}
@@ -770,7 +881,7 @@ html[data-theme="dark"] .k-placeholder{background:var(--surface2)}
   .kanban::-webkit-scrollbar{height:3px}
   .k-col{
     min-width:240px;max-width:240px;flex-shrink:0;
-    max-height:calc(100vh - var(--hh) - var(--bnav) - 130px);
+    max-height:calc(100vh - var(--hh) - var(--topnav, 0px) - 130px);
     scroll-snap-align:start
   }
 
@@ -802,6 +913,21 @@ html[data-theme="dark"] .k-placeholder{background:var(--surface2)}
 
   /* Equipment: hide less-important columns via class */
   .col-hide-mobile{display:none !important}
+
+
+  /* ── Budget: hide notes col, force scroll ── */
+  #page-budget .tcard-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #page-budget table{min-width:560px}
+
+  /* ── Contacts: source col no-wrap ── */
+  #contacts-tbody td:last-child{white-space:normal;word-break:break-word;max-width:80px}
+
+  /* ── Maintenance journal: all cols visible ── */
+  #maintenance-tbody td,#maintenance-tbody th{white-space:normal}
+
+  /* ── Expenses: ensure scroll ── */
+  #page-expenses .tcard-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #page-expenses table{min-width:420px}
 
   /* Login box smaller */
   .login-box{padding:48px 28px}
@@ -936,7 +1062,7 @@ html[data-theme="dark"] .k-placeholder{background:var(--surface2)}
 .deal-ai-action-btn{background:var(--leaf);border:1px solid var(--sage);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--moss);cursor:pointer;font-family:'DM Sans',sans-serif;transition:background .15s;font-weight:500}
 .deal-ai-action-btn:hover{background:var(--sage);color:#fff}
 /* ── CALENDAR ───────────────────────────────────────────────── */
-.cal-wrap{display:flex;flex-direction:column;height:calc(100vh - var(--hh) - 80px);min-height:500px;overflow:hidden}
+.cal-wrap{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
 .cal-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
 .cal-nav-btn{width:32px;height:32px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--ink2);cursor:pointer;font-size:16px;display:inline-flex;align-items:center;justify-content:center;transition:all .15s}
 .cal-nav-btn:hover{border-color:var(--sage);color:var(--fern)}
@@ -1206,8 +1332,13 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
 <header>
   <!-- Строка 1: лого + user + controls -->
   <div class="header-row1">
-    <a class="logo" href="#">Grass<em>CRM</em></a>
+    <a class="logo" href="#" id="app-logo">Grass<em>CRM</em></a>
     <div class="header-end">
+      <!-- Переключатель проектов — виден только owner -->
+      <div class="project-switcher" id="project-switcher">
+        <button class="proj-btn active" id="proj-btn-pokos" onclick="switchProject('pokos')">Покос</button>
+        <button class="proj-btn" id="proj-btn-electric" onclick="switchProject('electric')">⚡ Электрика</button>
+      </div>
       <div id="year-selector-container">
         <select id="year-selector"></select>
         <button class="hbtn" id="year-refresh" title="Обновить">↺</button>
@@ -1239,18 +1370,37 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
   </div>
 </header>
 
+<!-- BOTTOM TAB BAR -->
+<div id="mobile-tabbar">
+  <button class="mtab-btn active" data-page="dash" onclick="showPage('dash',this);mobileTabActive(this)"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg><span class="mtab-label">Дашборд</span></button>
+  <button class="mtab-btn" data-page="kanban" onclick="showPage('kanban',this);mobileTabActive(this)"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><path d="M3 7l9 6 9-6"/></svg><span class="mtab-label">Сделки</span></button>
+  <button class="mtab-btn" data-page="tasks" onclick="showPage('tasks',this);mobileTabActive(this)"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span class="mtab-label">Задачи</span></button>
+  <button class="mtab-btn" data-page="contacts" onclick="showPage('contacts',this);mobileTabActive(this)"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="mtab-label">Контакты</span></button>
+  <button class="mtab-btn" id="mtab-more-btn" onclick="mobileNavToggle()"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg><span class="mtab-label">Ещё</span></button>
+</div>
+
 <!-- Оверлей для мобильного меню -->
 <div id="mobile-nav-overlay" onclick="mobileNavClose()"></div>
 
-<!-- МОБИЛЬНОЕ МЕНЮ — drawer снизу -->
+<!-- МОБИЛЬНОЕ МЕНЮ — drawer сверху -->
 <div id="mobile-nav">
   <div id="mobile-nav-handle"></div>
-  <div id="mobile-nav-grid">
+  <!-- Быстрый ряд: Дашборд, Сделки, Задачи, Контакты -->
+  <div id="mobile-nav-top">
     <button class="active" data-page="dash" onclick="showPage('dash',this);mobileNavClose()"><span class="mnav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span><span class="mnav-label">Дашборд</span></button>
     <button data-page="kanban" onclick="showPage('kanban',this);mobileNavClose()"><span class="mnav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><path d="M3 7l9 6 9-6"/></svg></span><span class="mnav-label">Сделки</span></button>
     <button data-page="tasks" onclick="showPage('tasks',this);mobileNavClose()"><span class="mnav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><span class="mnav-label">Задачи</span></button>
-    <button data-page="calendar" onclick="showPage('calendar',this);calInit();mobileNavClose()"><span class="mnav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><span class="mnav-label">Календарь</span></button>
     <button data-page="contacts" onclick="showPage('contacts',this);mobileNavClose()"><span class="mnav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span><span class="mnav-label">Контакты</span></button>
+  </div>
+  <!-- Остальные разделы -->\n  <div id="mobile-nav-grid">
+    <!-- Переключатель проекта — только owner -->
+    <div id="mobile-proj-switcher" style="display:none;grid-column:1/-1;margin-bottom:6px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.1)">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+        <button id="mnav-proj-pokos" class="mnav-proj-btn active" onclick="switchProject('pokos');mobileNavClose()">🌿 Покос</button>
+        <button id="mnav-proj-electric" class="mnav-proj-btn" onclick="switchProject('electric');mobileNavClose()">⚡ Электрика</button>
+      </div>
+    </div>
+    <button data-page="calendar" onclick="showPage('calendar',this);calInit();mobileNavClose()"><span class="mnav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span><span class="mnav-label">Календарь</span></button>
     <button data-page="expenses" data-role="admin" onclick="showPage('expenses',this);mobileNavClose()"><span class="mnav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span><span class="mnav-label">Расходы</span></button>
     <button data-page="analytics" data-role="admin" onclick="showPage('analytics',this);mobileNavClose()"><span class="mnav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span class="mnav-label">Аналитика</span></button>
     <button data-page="budget" data-role="admin" onclick="showPage('budget',this);mobileNavClose()"><span class="mnav-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg></span><span class="mnav-label">Бюджет</span></button>
@@ -1265,8 +1415,8 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
 
 <div class="page active" id="page-dash">
   <div class="ph">
-    <div class="ph-eyebrow"><div class="ph-line"></div><span class="ph-label">Обзор</span></div>
-    <div class="ph-title">Ключевые <em>показатели</em><span class="ph-year year-display"></span></div>
+    <div class="ph-eyebrow"><div class="ph-line"></div><span class="ph-label" id="dash-eyebrow">Обзор</span></div>
+    <div class="ph-title" id="dash-title">Ключевые <em>показатели</em><span class="ph-year year-display"></span></div>
   </div>
   <div class="kpi-strip">
     <div class="kpi-card" style="--kpi-accent:#16a34a">
@@ -1293,7 +1443,7 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
       <div class="kpi-label">Чистая прибыль</div>
       <div class="kpi-sub" id="kpi-margin">маржа —%</div>
     </div>
-    <div class="kpi-card" style="--kpi-accent:#d97706">
+    <div class="kpi-card" style="--kpi-accent:#d97706" id="kpi-card-equipment">
       <span class="kpi-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></span>
       <div class="kpi-val" id="kpi-equip">—</div>
       <div class="kpi-label">Единиц техники</div>
@@ -1334,8 +1484,8 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
 <div class="page" id="page-kanban">
   <div class="ph ph-with-btn" style="display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:28px">
     <div>
-      <div class="ph-eyebrow"><div class="ph-line"></div><span class="ph-label">Воронка продаж</span></div>
-      <div class="ph-title">Сделки <em>по этапам</em><span class="ph-year year-display"></span></div>
+      <div class="ph-eyebrow"><div class="ph-line"></div><span class="ph-label" id="kanban-eyebrow">Воронка продаж</span></div>
+      <div class="ph-title" id="kanban-title">Сделки <em>по этапам</em><span class="ph-year year-display"></span></div>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <button class="btn-archive-toggle" onclick="openArchivePanel()">Архив</button>
@@ -1345,6 +1495,12 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
   <div class="k-archive-drop" id="archive-drop-zone">
     <span class="k-archive-drop-ico">📦</span>
     <span class="k-archive-drop-label">Перетащите сюда, чтобы архивировать</span>
+  </div>
+  <div style="padding:0 0 14px 0">
+    <input id="deals-search-input" type="search" placeholder="🔍  Поиск по сделкам, клиентам, телефону…"
+      style="width:100%;box-sizing:border-box;padding:9px 14px;border:1px solid var(--border);border-radius:10px;background:var(--surface2);color:var(--ink);font-size:13px;font-family:inherit;outline:none;transition:border .2s"
+      oninput="onDealsSearch(this.value)"
+      onfocus="this.style.borderColor='var(--sage)'" onblur="this.style.borderColor='var(--border)'">
   </div>
   <div class="kanban" id="kanban-board"></div>
 </div>
@@ -1424,7 +1580,7 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
                     </div>
                     <div class="field" style="margin-top: 16px;">
                         <label>ДАТА</label>
-                        <input type="date" id="tax-payment-date" />
+                        <input type="text" id="tax-payment-date" placeholder="дд.мм.гггг" autocomplete="off" readonly />
                     </div>
                     <div class="modal-row" style="justify-content:flex-start; margin-top: 20px;">
                          <button class="add-btn" onclick="saveTaxPayment()">＋ Добавить платёж</button>
@@ -1687,6 +1843,52 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
     </div>
   </div>
 
+  <!-- Row 4: Сезонное сравнение + Статистика по времени -->
+  <div class="an-2col" style="margin-top:20px">
+    <div class="tcard">
+      <div class="tcard-head"><span class="tcard-title">Сезонное сравнение</span><span class="tcard-meta">апр — окт, год к году</span></div>
+      <div class="chart-wrap" id="an-seasons-chart"></div>
+      <div class="chart-legend" id="an-seasons-legend"></div>
+    </div>
+    <div class="tcard">
+      <div class="tcard-head"><span class="tcard-title">Рабочее время</span><span class="tcard-meta">по выездам</span></div>
+      <div class="kpi-strip" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="kpi-card" style="--kpi-accent:#0e7490;padding:14px">
+          <div class="kpi-val" id="an-total-hours" style="font-size:22px">—</div>
+          <div class="kpi-label">Часов всего</div>
+        </div>
+        <div class="kpi-card" style="--kpi-accent:#7c3aed;padding:14px">
+          <div class="kpi-val" id="an-revenue-per-hour" style="font-size:22px">—</div>
+          <div class="kpi-label">₽ в час</div>
+        </div>
+        <div class="kpi-card" style="--kpi-accent:#b07d2c;padding:14px">
+          <div class="kpi-val" id="an-avg-hours" style="font-size:22px">—</div>
+          <div class="kpi-label">Часов на выезд</div>
+        </div>
+        <div class="kpi-card" style="--kpi-accent:#16a34a;padding:14px">
+          <div class="kpi-val" id="an-hours-deals-count" style="font-size:22px">—</div>
+          <div class="kpi-label">Выездов с учётом времени</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 5: Маржинальность по клиентам + Загрузка по дням недели -->
+  <div class="an-2col" style="margin-top:20px">
+    <div class="tcard">
+      <div class="tcard-head"><span class="tcard-title">Маржинальность по клиентам</span><span class="tcard-meta">топ 20 за год</span></div>
+      <div id="an-client-margin" style="overflow-x:auto">
+        <div style="padding:20px;text-align:center;font-size:12px;color:var(--ink4)">Загрузка…</div>
+      </div>
+    </div>
+    <div class="tcard">
+      <div class="tcard-head"><span class="tcard-title">Загрузка по дням недели</span><span class="tcard-meta">успешные сделки</span></div>
+      <div id="an-weekday-chart" class="funnel-list" style="padding-top:8px">
+        <div style="padding:20px;text-align:center;font-size:12px;color:var(--ink4)">Загрузка…</div>
+      </div>
+    </div>
+  </div>
+
   <!-- AI-аналитика -->
   <div class="an-ai-block" id="an-ai-block">
     <div class="an-ai-header">
@@ -1749,12 +1951,12 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
     <div class="tcard-scroll">
       <table style="font-size:13px">
         <colgroup>
-          <col style="min-width:220px;width:24%">
-          <col style="min-width:90px;width:8%">
-          <col style="min-width:140px;width:13%">
-          <col style="min-width:140px;width:13%">
-          <col style="min-width:140px;width:13%">
-          <col style="min-width:200px">
+          <col style="min-width:160px">
+          <col style="min-width:70px">
+          <col style="min-width:110px">
+          <col style="min-width:110px">
+          <col style="min-width:110px">
+          <col style="min-width:150px">
         </colgroup>
         <thead><tr>
           <th>Название</th>
@@ -1837,7 +2039,7 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
       </div>
       <div class="field">
         <label>ДАТА</label>
-        <input type="date" id="ex-date" />
+        <input type="text" id="ex-date" placeholder="дд.мм.гггг" autocomplete="off" readonly />
       </div>
     </div>
     <div class="field full">
@@ -1868,7 +2070,7 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
     <div class="modal-grid">
       <div class="field">
         <label>СРОК</label>
-        <input type="date" id="t-date" />
+        <input type="text" id="t-date" placeholder="дд.мм.гггг" autocomplete="off" readonly />
       </div>
       <div class="field">
         <label>ОТВЕТСТВЕННЫЙ</label>
@@ -1913,22 +2115,37 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
 </div>
 
 <div class="overlay" id="deal-overlay" onclick="if(event.target===this)closeDealModal()">
-  <div class="modal" style="max-width: 900px;">
-    <div class="modal-title" id="d-modal-title">Новая <em>сделка</em></div>
+  <div class="modal deal-modal-wide">
 
-    <!-- Название — на всю ширину -->
-    <div class="field full" style="margin-bottom:14px">
-      <label>НАЗВАНИЕ СДЕЛКИ</label>
-      <input type="text" id="d-title" placeholder="Покос участка 10 соток" />
+    <!-- ── ШАПКА ── -->
+    <div class="deal-modal-header">
+      <div class="field" style="flex:2;min-width:0;margin:0">
+        <label>НАЗВАНИЕ СДЕЛКИ</label>
+        <input type="text" id="d-title" placeholder="Покос участка 10 соток" />
+      </div>
+      <div class="field" style="flex:1;min-width:0;margin:0">
+        <label>ЭТАП</label>
+        <select id="d-stage"></select>
+      </div>
+      <div class="field" style="flex:1;min-width:0;margin:0">
+        <label>ОТВЕТСТВЕННЫЙ</label>
+        <select id="d-assignee"></select>
+      </div>
+      <div class="deal-modal-header-btns">
+        <button class="btn-sec" id="btn-deal-duplicate" style="display:none" onclick="duplicateDeal()">⧉ Дублировать</button>
+        <button class="btn-sec btn-del-modal" id="btn-deal-delete" style="display:none">Удалить</button>
+        <button class="btn-sec" onclick="closeDealModal()">Отмена</button>
+        <button class="btn-pri" id="btn-deal-save">Создать</button>
+      </div>
     </div>
 
-    <!-- 2-колоночная сетка -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 24px">
+    <!-- ── ОСНОВНАЯ СЕТКА 2 КОЛОНКИ ── -->
+    <div class="deal-modal-body">
 
       <!-- ЛЕВАЯ КОЛОНКА -->
-      <div>
+      <div class="deal-modal-left">
         <div class="field">
-          <label>КЛИЕНТ</label>
+          <label style="display:flex;align-items:center;justify-content:space-between">КЛИЕНТ <a id="d-contact-link" href="#" onclick="goToContactFromDeal(event)" style="display:none;font-size:11px;color:var(--sage);text-decoration:none;font-family:'DM Sans',sans-serif">→ открыть контакт</a></label>
           <div style="position:relative" id="d-contact-wrap">
             <input type="text" id="d-contact-input" placeholder="Начните вводить имя..." autocomplete="off"
               oninput="filterContactDropdown(this.value)"
@@ -1939,196 +2156,188 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
         </div>
         <div class="field">
           <label>АДРЕС ОБЪЕКТА</label>
-          <input list="d-address-list" type="text" id="d-address" placeholder="ул. Лесная, д. 5, Подмосковье" oninput="filterContactAddresses(this.value)" />
+          <input list="d-address-list" type="text" id="d-address" placeholder="ул. Лесная, д. 5" oninput="filterContactAddresses(this.value)" />
           <datalist id="d-address-list"></datalist>
         </div>
-        <div class="field">
-          <label>ДАТА ВЫЕЗДА</label>
-          <input type="text" id="d-work-date" placeholder="дд.мм.гггг" autocomplete="off" readonly />
-        </div>
-        <div class="field">
-          <label>СКИДКА</label>
-          <div style="display:flex;gap:6px;align-items:center">
-            <input type="number" id="d-discount" value="0" onchange="calculateDealTotal()" style="flex:1;min-width:0">
-            <select id="d-discount-type" onchange="calculateDealTotal()" style="flex:1;min-width:0;padding:10px 8px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--ink);cursor:pointer;appearance:auto">
-              <option value="percent">Проценты %</option>
-              <option value="fixed">Рубли ₽</option>
-            </select>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="field">
+            <label>ДАТА ВЫЕЗДА</label>
+            <input type="text" id="d-work-date" placeholder="дд.мм.гггг" autocomplete="off" readonly />
+          </div>
+          <div class="field">
+            <label>ВРЕМЯ</label>
+            <input type="time" id="d-work-time" />
           </div>
         </div>
         <div class="field">
-          <label>ЭТАП</label>
-          <select id="d-stage"></select>
+          <label>ЧАСОВ НА ВЫЕЗД</label>
+          <input type="number" id="d-duration-hours" min="0" step="0.5" placeholder="напр. 2.5" />
+        </div>
+        <div class="field" style="background:var(--surface2);border-radius:10px;padding:12px;border:1px solid var(--border)">
+          <label style="margin-bottom:8px;display:block">↻ ПОВТОРНЫЙ ВЫЕЗД</label>
+          <button class="btn-sec" id="btn-deal-repeat" style="width:100%;display:none" onclick="openRepeatModal()">Настроить повтор</button>
+          <div id="d-repeat-info" style="font-size:12px;color:var(--ink3)">— не задан</div>
+        </div>
+
+        <div style="background:var(--surface2);border-radius:10px;padding:14px;border:1px solid var(--border);margin-top:0">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="field" style="margin:0">
+              <label>СКИДКА</label>
+              <div style="display:flex;gap:6px">
+                <input type="number" id="d-discount" value="0" onchange="calculateDealTotal()" style="flex:1;min-width:0">
+                <select id="d-discount-type" onchange="calculateDealTotal()" style="flex:1;min-width:0;padding:9px 6px;font-size:12px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--ink);cursor:pointer">
+                  <option value="percent">%</option>
+                  <option value="fixed">₽</option>
+                </select>
+              </div>
+            </div>
+            <div class="field" style="margin:0">
+              <label>НАЛОГ</label>
+              <select id="d-tax-rate" onchange="calculateDealTotal()" style="width:100%;padding:9px 8px;font-size:13px;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--ink)">
+                <option value="0">Без налога</option>
+                <option value="4">4%</option>
+                <option value="6">6%</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;gap:16px;margin-bottom:12px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin:0">
+              <input type="checkbox" id="d-tax-included" onchange="calculateDealTotal()" style="width:auto;margin:0"> Налог включён
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin:0">
+              <input type="checkbox" id="d-tax-on-materials" onchange="calculateDealTotal()" style="width:auto;margin:0"> Налог с материалов
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div class="field" style="margin:0">
+              <label>СУММА НАЛОГА</label>
+              <input type="text" id="d-tax-amount" readonly style="background:var(--bg);color:var(--ink3);font-family:'Playfair Display',serif;font-size:15px" />
+            </div>
+            <div class="field" style="margin:0">
+              <label>ИТОГО</label>
+              <input type="text" id="d-total" readonly style="background:var(--bg);color:var(--ink);font-family:'Playfair Display',serif;font-size:16px;font-weight:bold" />
+            </div>
+          </div>
         </div>
       </div>
 
       <!-- ПРАВАЯ КОЛОНКА -->
-      <div>
-        <div class="field">
-          <label>ОТВЕТСТВЕННЫЙ</label>
-          <select id="d-assignee"></select>
+      <div class="deal-modal-right">
+        <div id="d-services-block">
+          <div class="field" style="margin-bottom:8px">
+            <label>УСЛУГИ</label>
+          </div>
+          <div class="tcard" style="margin-bottom:8px">
+            <table id="d-services-table">
+              <thead><tr><th>Услуга</th><th>Цена</th><th>Кол-во</th><th>Итог</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <button class="btn-sec" style="width:100%;margin-bottom:16px" onclick="openItemSelectorModal('service')">＋ Добавить услугу</button>
         </div>
-        <div class="field">
-          <!-- placeholder для выравнивания: адрес сдвигает левую -->
-          <label>ВРЕМЯ ВЫЕЗДА</label>
-          <input type="time" id="d-work-time" />
-        </div>
-        <div class="field" style="margin-top:28px"><!-- выравниватель --></div>
-        <div class="field">
-          <label>НАЛОГ (%)</label>
-          <select id="d-tax-rate" onchange="calculateDealTotal()">
-            <option value="0">Без налога</option>
-            <option value="4">4%</option>
-            <option value="6">6%</option>
-          </select>
-        </div>
-        <div class="field" style="display:flex;align-items:center;padding-top:14px;gap:8px">
-          <input type="checkbox" id="d-tax-included" onchange="calculateDealTotal()" style="width:auto;margin:0">
-          <label for="d-tax-included" style="margin:0;font-size:12px">Налог включён</label>
-        </div>
-        <div class="field" style="display:flex;align-items:center;padding-top:6px;gap:8px">
-          <input type="checkbox" id="d-tax-on-materials" onchange="calculateDealTotal()" style="width:auto;margin:0">
-          <label for="d-tax-on-materials" style="margin:0;font-size:12px">Налог с материалов</label>
+
+        <div id="d-materials-block">
+          <div class="field" style="margin-bottom:8px">
+            <label>МАТЕРИАЛЫ <span style="font-size:10px;color:var(--ink4);font-weight:400;text-transform:none">— закупка вычитается из прибыли</span></label>
+          </div>
+          <div class="tcard" style="margin-bottom:8px;overflow-x:auto">
+            <table id="d-materials-table" style="min-width:480px">
+              <thead>
+                <tr>
+                  <th style="min-width:120px">Название</th>
+                  <th style="width:60px">Кол-во</th>
+                  <th style="width:85px">Закупка ₽</th>
+                  <th style="width:85px">Клиент ₽</th>
+                  <th style="width:70px">Маржа</th>
+                  <th style="width:32px"></th>
+                </tr>
+              </thead>
+              <tbody id="d-materials-tbody"></tbody>
+            </table>
+          </div>
+          <button class="btn-sec" style="width:100%;margin-bottom:16px" onclick="addDealMaterial()">＋ Добавить материал</button>
         </div>
       </div>
     </div>
 
-    <!-- Блок услуг — на всю ширину -->
-    <div id="d-services-block" style="margin-top:4px">
-      <label>УСЛУГИ</label>
-      <div class="tcard" style="margin-bottom:12px">
-        <table id="d-services-table">
-          <thead><tr><th>Услуга</th><th>Цена</th><th>Кол-во</th><th>Итог</th><th></th></tr></thead>
-          <tbody></tbody>
-        </table>
+    <!-- ── ВКЛАДКИ ── -->
+    <div id="deal-tabs-wrap" style="display:none;margin-top:20px;border-top:1px solid var(--border2);padding-top:16px">
+      <div class="deal-tabs-nav" id="deal-tabs-nav">
+        <button class="deal-tab-btn" onclick="switchDealTab('notes',this)">📝 Заметки</button>
+        <button class="deal-tab-btn" onclick="switchDealTab('comments',this)">💬 Комментарии</button>
+        <button class="deal-tab-btn active" onclick="switchDealTab('files',this)">📸 Файлы</button>
+        <button class="deal-tab-btn" onclick="switchDealTab('ai',this)">✨ AI</button>
       </div>
-      <button class="btn-sec" style="width:100%" onclick="openItemSelectorModal('service')">＋ Добавить услугу</button>
-    </div>
 
-    <!-- Блок материалов -->
-    <div id="d-materials-block" style="margin-top:16px">
-      <label>МАТЕРИАЛЫ <span style="font-size:10px;color:var(--ink4);font-weight:400;text-transform:none">— закупка вычитается из прибыли</span></label>
-      <div class="tcard" style="margin-bottom:12px;overflow-x:auto">
-        <table id="d-materials-table" style="min-width:520px">
-          <thead>
-            <tr>
-              <th style="min-width:140px">Название</th>
-              <th style="width:64px">Кол-во</th>
-              <th style="width:90px">Закупка ₽</th>
-              <th style="width:90px">Клиент ₽</th>
-              <th style="width:80px">Маржа</th>
-              <th style="width:32px"></th>
-            </tr>
-          </thead>
-          <tbody id="d-materials-tbody"></tbody>
-        </table>
+      <div class="deal-tab-panel" id="deal-tab-notes">
+        <textarea id="d-notes" placeholder="Заметки по сделке…" rows="4"
+          style="width:100%;resize:vertical;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--ink);outline:none;box-sizing:border-box;margin-top:12px"
+          oninput="debounceSaveNotes()"></textarea>
       </div>
-      <button class="btn-sec" style="width:100%" onclick="addDealMaterial()">＋ Добавить материал</button>
-    </div>
 
-    <!-- Итоговые суммы -->
-    <div class="modal-grid" style="margin-top:16px;grid-template-columns:1fr 1fr">
-      <div class="field">
-        <label>СУММА НАЛОГА</label>
-        <input type="text" id="d-tax-amount" readonly style="background:var(--bg);color:var(--ink3);font-family:'Playfair Display',serif;font-size:16px" />
-      </div>
-      <div class="field">
-        <label>ИТОГОВАЯ СУММА</label>
-        <input type="text" id="d-total" readonly style="background:var(--bg);color:var(--ink);font-family:'Playfair Display',serif;font-size:16px;font-weight:bold" />
-      </div>
-    </div>
-
-
-    <div class="modal-row">
-        <button class="btn-sec btn-del-modal" id="btn-deal-delete" style="display:none;">Удалить</button>
-        <button class="btn-sec" id="btn-deal-repeat" style="display:none;" onclick="openRepeatModal()"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Повтор</button>
-        <button class="btn-sec" onclick="closeDealModal()">ОТМЕНА</button>
-        <button class="btn-pri" id="btn-deal-save">СОЗДАТЬ</button>
-    </div>
-
-    <!-- Комментарии (только для существующей сделки) -->
-    <div class="dcomments-wrap" id="dcomments-wrap" style="display:none">
-      <div class="dcomments-title">Комментарии</div>
-      <div class="dcomment-list" id="dcomment-list">
-        <div class="dcomment-empty">Загрузка…</div>
-      </div>
-      <div class="dcomment-add">
-        <textarea class="dcomment-input" id="dcomment-input" placeholder="Написать комментарий… (Ctrl+Enter — отправить)" rows="1"
-          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
-          onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))addDealComment()"></textarea>
-        <button class="dcomment-submit" onclick="addDealComment()" title="Отправить (Ctrl+Enter)">↑</button>
-      </div>
-    </div>
-
-    <!-- Файлы сделки -->
-    <div id="deal-files-wrap" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid var(--border2)">
-      <div class="dcomments-title">Фото и файлы сделки</div>
-
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div class="fupload-zone" style="padding:12px" onclick="document.getElementById('deal-file-before-input').click()"
-             ondragover="filesZoneDragOver(event)" ondragleave="filesZoneDragLeave(event)" ondrop="dealFileDrop(event, 'before')">
-          <input type="file" id="deal-file-before-input" multiple accept="image/*" onchange="dealUploadFiles(this.files, 'before')">
-          <div style="font-size:11px;color:var(--ink3)"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Фото <b>до</b></div>
-        </div>
-        <div class="fupload-zone" style="padding:12px" onclick="document.getElementById('deal-file-after-input').click()"
-             ondragover="filesZoneDragOver(event)" ondragleave="filesZoneDragLeave(event)" ondrop="dealFileDrop(event, 'after')">
-          <input type="file" id="deal-file-after-input" multiple accept="image/*" onchange="dealUploadFiles(this.files, 'after')">
-          <div style="font-size:11px;color:var(--ink3)"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/><line x1="18" y1="3" x2="22" y2="3"/><line x1="20" y1="1" x2="20" y2="5"/></svg> Фото <b>после</b></div>
+      <div class="deal-tab-panel" id="deal-tab-comments" style="display:none;padding-top:12px">
+        <div class="dcomment-list" id="dcomment-list"><div class="dcomment-empty">Загрузка…</div></div>
+        <div class="dcomment-add">
+          <textarea class="dcomment-input" id="dcomment-input" placeholder="Написать комментарий… (Ctrl+Enter)" rows="1"
+            oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+            onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))addDealComment()"></textarea>
+          <button class="dcomment-submit" onclick="addDealComment()" title="Ctrl+Enter">↑</button>
         </div>
       </div>
 
-      <div class="fupload-zone" style="padding:14px;margin-bottom:10px" onclick="document.getElementById('deal-file-input').click()"
-           ondragover="filesZoneDragOver(event)" ondragleave="filesZoneDragLeave(event)" ondrop="dealFileDrop(event, 'general')">
-        <input type="file" id="deal-file-input" multiple onchange="dealUploadFiles(this.files, 'general')">
-        <div style="font-size:11px;color:var(--ink3)"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Прочие файлы (договор, смета и т.д.)</div>
+      <div class="deal-tab-panel active" id="deal-tab-files" style="padding-top:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div class="fupload-zone" style="padding:12px" onclick="document.getElementById('deal-file-before-input').click()"
+               ondragover="filesZoneDragOver(event)" ondragleave="filesZoneDragLeave(event)" ondrop="dealFileDrop(event,'before')">
+            <input type="file" id="deal-file-before-input" multiple accept="image/*" onchange="dealUploadFiles(this.files,'before')">
+            <div style="font-size:11px;color:var(--ink3)">📷 Фото <b>до</b></div>
+          </div>
+          <div class="fupload-zone" style="padding:12px" onclick="document.getElementById('deal-file-after-input').click()"
+               ondragover="filesZoneDragOver(event)" ondragleave="filesZoneDragLeave(event)" ondrop="dealFileDrop(event,'after')">
+            <input type="file" id="deal-file-after-input" multiple accept="image/*" onchange="dealUploadFiles(this.files,'after')">
+            <div style="font-size:11px;color:var(--ink3)">📸 Фото <b>после</b></div>
+          </div>
+        </div>
+        <div class="fupload-zone" style="padding:12px;margin-bottom:10px" onclick="document.getElementById('deal-file-input').click()"
+             ondragover="filesZoneDragOver(event)" ondragleave="filesZoneDragLeave(event)" ondrop="dealFileDrop(event,'general')">
+          <input type="file" id="deal-file-input" multiple onchange="dealUploadFiles(this.files,'general')">
+          <div style="font-size:11px;color:var(--ink3)">📎 Прочие файлы (договор, смета…)</div>
+        </div>
+        <div style="font-size:11px;color:var(--ink4);margin:8px 0 4px">Фото ДО</div>
+        <div class="flist" id="deal-files-before-list"><div class="fempty">Нет фото</div></div>
+        <div style="font-size:11px;color:var(--ink4);margin:12px 0 4px">Фото ПОСЛЕ</div>
+        <div class="flist" id="deal-files-after-list"><div class="fempty">Нет фото</div></div>
+        <div style="font-size:11px;color:var(--ink4);margin:12px 0 4px">Прочие файлы</div>
+        <div class="flist" id="deal-files-other-list"><div class="fempty">Нет файлов</div></div>
       </div>
 
-      <div style="font-size:11px;color:var(--ink4);margin:8px 0 4px">Фото ДО</div>
-      <div class="flist" id="deal-files-before-list"><div class="fempty">Загрузка…</div></div>
-
-      <div style="font-size:11px;color:var(--ink4);margin:12px 0 4px">Фото ПОСЛЕ</div>
-      <div class="flist" id="deal-files-after-list"><div class="fempty">Загрузка…</div></div>
-
-      <div style="font-size:11px;color:var(--ink4);margin:12px 0 4px">Прочие файлы</div>
-      <div class="flist" id="deal-files-other-list"><div class="fempty">Загрузка…</div></div>
-    </div>
-
-    <!-- ── AI-панель сделки ── -->
-    <div class="deal-ai-panel" id="deal-ai-panel" style="display:none">
-      <div class="deal-ai-title">AI-ассистент</div>
-
-      <!-- Быстрые вопросы -->
-      <div class="deal-ai-quick">
-        <span class="deal-ai-chip" onclick="dealAiChip('Что можно улучшить по этой сделке?')"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> Рекомендации</span>
-        <span class="deal-ai-chip" onclick="dealAiChip('Напиши краткий итог по сделке')"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg> Итог сделки</span>
-        <span class="deal-ai-chip" onclick="dealAiChip('Какие задачи стоит создать?')"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Предложи задачи</span>
-        <span class="deal-ai-chip" onclick="dealAiChip('Составь сообщение клиенту о готовности')"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Сообщение клиенту</span>
-        <span class="deal-ai-chip" onclick="dealAiAction('summarize')"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> Добавить итог в комментарий</span>
-      </div>
-
-      <!-- Произвольный вопрос -->
-      <div class="deal-ai-input-row">
-        <textarea class="deal-ai-input" id="deal-ai-input"
-          placeholder="Спросить что-то по этой сделке…"
-          rows="1"
-          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
-          onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))dealAiAsk()"></textarea>
-        <button class="deal-ai-send" id="deal-ai-send" onclick="dealAiAsk()" title="Спросить (Ctrl+Enter)">↑</button>
-      </div>
-
-      <!-- Ответ AI -->
-      <div class="deal-ai-answer" id="deal-ai-answer"></div>
-
-      <!-- Быстрые действия (появляются после ответа) -->
-      <div class="deal-ai-actions" id="deal-ai-actions" style="display:none">
-        <button class="deal-ai-action-btn" onclick="dealAiAction('save_comment')"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Сохранить как комментарий</button>
-        <button class="deal-ai-action-btn" onclick="dealAiAction('create_task')"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg> Создать задачу</button>
+      <div class="deal-tab-panel" id="deal-tab-ai" style="display:none;padding-top:12px">
+        <div class="deal-ai-panel" id="deal-ai-panel">
+          <div class="deal-ai-quick">
+            <span class="deal-ai-chip" onclick="dealAiChip('Что можно улучшить по этой сделке?')">💡 Рекомендации</span>
+            <span class="deal-ai-chip" onclick="dealAiChip('Напиши краткий итог по сделке')">📋 Итог сделки</span>
+            <span class="deal-ai-chip" onclick="dealAiChip('Какие задачи стоит создать?')">✅ Предложи задачи</span>
+            <span class="deal-ai-chip" onclick="dealAiChip('Составь сообщение клиенту о готовности')">💬 Сообщение клиенту</span>
+            <span class="deal-ai-chip" onclick="dealAiAction('summarize')">✍️ Итог в комментарий</span>
+          </div>
+          <div class="deal-ai-input-row">
+            <textarea class="deal-ai-input" id="deal-ai-input" placeholder="Спросить что-то по этой сделке… (Ctrl+Enter)" rows="1"
+              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+              onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))dealAiAsk()"></textarea>
+            <button class="deal-ai-send" id="deal-ai-send" onclick="dealAiAsk()" title="Ctrl+Enter">↑</button>
+          </div>
+          <div class="deal-ai-answer" id="deal-ai-answer"></div>
+          <div class="deal-ai-actions" id="deal-ai-actions" style="display:none">
+            <button class="deal-ai-action-btn" onclick="dealAiAction('save_comment')">💬 Сохранить как комментарий</button>
+            <button class="deal-ai-action-btn" onclick="dealAiAction('create_task')">✅ Создать задачу</button>
+          </div>
+        </div>
       </div>
     </div>
 
   </div>
- </div>
-  
+</div>
+
 <div class="overlay" id="deal-lost-reason-overlay" onclick="if(event.target===this)closeLostReasonModal(false)">
   <div class="modal" style="max-width:520px;">
     <div class="modal-title">Причина <em>провала</em></div>
@@ -2139,6 +2348,26 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
     <div class="modal-row">
       <button class="btn-sec" onclick="closeLostReasonModal(false)">Отмена</button>
       <button class="btn-pri" onclick="closeLostReasonModal(true)">Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ТРИГГЕР: СДЕЛКА ЗАВЕРШЕНА УСПЕШНО -->
+<div class="overlay" id="deal-won-trigger-overlay">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title" style="color:var(--sage)">✅ Заказ <em>выполнен!</em></div>
+    <p style="margin:0 0 20px;font-size:13px;color:var(--ink3)">Не забудьте заполнить детали выезда:</p>
+    <div class="field full">
+      <label>ЧАСОВ НА ВЫЕЗД</label>
+      <input type="number" id="won-trigger-hours" min="0" step="0.5" placeholder="напр. 2.5" autofocus />
+    </div>
+    <div style="padding:12px 14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);font-size:12px;color:var(--ink3);display:flex;align-items:center;gap:10px">
+      <span style="font-size:18px">📸</span>
+      <span>Прикрепите фото результата во вкладке <b>Файлы</b> в сделке — клиент оценит!</span>
+    </div>
+    <div class="modal-row" style="margin-top:20px">
+      <button class="btn-sec" onclick="closeWonTrigger(false)">Пропустить</button>
+      <button class="btn-pri" onclick="closeWonTrigger(true)">Сохранить</button>
     </div>
   </div>
 </div>
@@ -2229,7 +2458,8 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
                 <option value="2ГИС">2ГИС</option>
                 <option value="Сайт">Сайт</option>
                 <option value="Google">Google</option>
-                <option value="Другое">Другое</option>
+                <option value="Авирона">Авирона</option>
+                <option value="Юла">Юла</option>
               </select>
             </div>
           </div>
@@ -2374,7 +2604,7 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
             </div>
             <div class="field">
                 <label>Дата покупки</label>
-                <input type="date" id="eq-purchase-date">
+                <input type="text" id="eq-purchase-date" placeholder="дд.мм.гггг" autocomplete="off" readonly>
             </div>
             <div class="field">
                 <label>Стоимость</label>
@@ -2400,11 +2630,11 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
             </div>
              <div class="field">
                 <label>Последнее ТО</label>
-                <input type="date" id="eq-last-maintenance">
+                <input type="text" id="eq-last-maintenance" placeholder="дд.мм.гггг" autocomplete="off" readonly>
             </div>
              <div class="field">
                 <label>Следующее ТО</label>
-                <input type="date" id="eq-next-maintenance">
+                <input type="text" id="eq-next-maintenance" placeholder="дд.мм.гггг" autocomplete="off" readonly>
             </div>
         </div>
         <div class="field full">
@@ -2429,7 +2659,7 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
             </div>
             <div class="field">
                 <label>Дата</label>
-                <input type="date" id="m-date">
+                <input type="text" id="m-date" placeholder="дд.мм.гггг" autocomplete="off" readonly>
             </div>
         </div>
         <div class="field full">
@@ -2519,7 +2749,7 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
     </div>
     <div class="field full">
       <label>ДАТА</label>
-      <input type="date" id="tp-date" />
+      <input type="text" id="tp-date" placeholder="дд.мм.гггг" autocomplete="off" readonly />
     </div>
     <div class="field full">
       <label>ПРИМЕЧАНИЕ</label>
@@ -2690,39 +2920,90 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
     <!-- Telegram -->
     <div class="svc-card">
       <div class="svc-card-title"><span><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg></span> Telegram</div>
-      <!-- Статусы обоих ботов -->
-      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
-        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink3)">
+
+      <!-- Статусы ботов -->
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
           <span class="svc-status-dot" id="svc-tg-dot"></span>
           <span style="color:var(--ink2);font-weight:500">Бот отчётов:</span>
-          <span id="svc-tg-status">проверка…</span>
+          <span id="svc-tg-status" style="color:var(--ink3)">проверка…</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink3)">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
           <span class="svc-status-dot" id="svc-tg2-dot"></span>
           <span style="color:var(--ink2);font-weight:500">Клиентский бот:</span>
-          <span id="svc-tg2-status">проверка…</span>
+          <span id="svc-tg2-status" style="color:var(--ink3)">проверка…</span>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink3)">
+        <div style="display:flex;align-items:center;gap:8px;font-size:12px">
           <span class="svc-status-dot" id="svc-tg3-dot"></span>
           <span style="color:var(--ink2);font-weight:500">AI-ассистент:</span>
-          <span id="svc-tg3-status">проверка…</span>
+          <span id="svc-tg3-status" style="color:var(--ink3)">проверка…</span>
         </div>
       </div>
-      <!-- Автоотправка -->
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px">
-        <span style="font-size:12px;color:var(--ink2)">Ежедневный отчёт</span>
-        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-          <input type="checkbox" id="svc-tg-auto-toggle" onchange="svcSaveSchedule()" style="width:16px;height:16px;accent-color:var(--sage);cursor:pointer">
-          <span id="svc-tg-auto-label" style="font-size:11px;color:var(--ink3)">выкл</span>
-        </label>
+
+      <hr class="svc-divider">
+
+      <!-- Бот отчётов -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:600;color:var(--ink3);letter-spacing:.6px;text-transform:uppercase;margin-bottom:10px">Бот отчётов (группа)</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px">
+          <span style="font-size:12px;color:var(--ink2)">Ежедневный отчёт в 18:00</span>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none">
+            <div id="svc-toggle-report" onclick="svcToggleSchedule('report')"
+              style="width:36px;height:20px;border-radius:10px;background:var(--border);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0">
+              <div id="svc-toggle-report-knob" style="position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+            </div>
+            <span id="svc-toggle-report-lbl" style="font-size:11px;color:var(--ink3);min-width:24px">выкл</span>
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:12px;color:var(--ink3)">Время:</span>
+          <input type="time" id="svc-tg-time-input" value="18:00" onchange="svcSaveSchedule()"
+            style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--ink);width:100px">
+        </div>
+        <button class="svc-btn success" onclick="svcSendReport(this)">
+          <span class="svc-btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></span>
+          Отправить отчёт сейчас
+        </button>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-        <span style="font-size:12px;color:var(--ink3)">Время:</span>
-        <input type="time" id="svc-tg-time-input" value="18:00" onchange="svcSaveSchedule()"
-          style="font-size:13px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--ink);width:100px">
+
+      <hr class="svc-divider">
+
+      <!-- AI-ассистент -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;font-weight:600;color:var(--ink3);letter-spacing:.6px;text-transform:uppercase;margin-bottom:10px">AI-ассистент (личные сообщения)</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px">
+          <span style="font-size:12px;color:var(--ink2)">Утренняя проверка (09:00)</span>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none">
+            <div id="svc-toggle-morning" onclick="svcToggleSchedule('morning')"
+              style="width:36px;height:20px;border-radius:10px;background:var(--border);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0">
+              <div id="svc-toggle-morning-knob" style="position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+            </div>
+            <span id="svc-toggle-morning-lbl" style="font-size:11px;color:var(--ink3);min-width:24px">—</span>
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px">
+          <span style="font-size:12px;color:var(--ink2)">Вечерняя сводка (19:00)</span>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;user-select:none">
+            <div id="svc-toggle-evening" onclick="svcToggleSchedule('evening')"
+              style="width:36px;height:20px;border-radius:10px;background:var(--border);cursor:pointer;position:relative;transition:background .2s;flex-shrink:0">
+              <div id="svc-toggle-evening-knob" style="position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></div>
+            </div>
+            <span id="svc-toggle-evening-lbl" style="font-size:11px;color:var(--ink3);min-width:24px">—</span>
+          </label>
+        </div>
+        <button class="svc-btn" onclick="svcSendCheckup(this)">
+          <span class="svc-btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></span>
+          Запустить проверку (checkup)
+        </button>
       </div>
-      <button class="svc-btn success" onclick="svcSendReport(this)"><span class="svc-btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></span> Отправить отчёт сейчас</button>
-      <button class="svc-btn" style="margin-top:6px" onclick="svcRunRepeats(this)"><span class="svc-btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em;flex-shrink:0"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span> Проверить повторные сделки</button>
+
+      <hr class="svc-divider">
+
+      <!-- Служебные -->
+      <button class="svc-btn" style="margin-top:4px" onclick="svcRunRepeats(this)">
+        <span class="svc-btn-icon"><svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:-0.15em"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg></span>
+        Проверить повторные сделки
+      </button>
       <div class="svc-result" id="svc-tg-result"></div>
     </div>
 
@@ -2781,6 +3062,19 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
 
   </div>
 
+  <!-- Версии компонентов — полная ширина -->
+  <div class="svc-grid full">
+    <div class="svc-card">
+      <div class="svc-card-title" style="justify-content:space-between">
+        <div><span>🔖</span> Версии компонентов</div>
+        <button class="svc-btn" style="width:auto;padding:5px 12px;font-size:11px;margin:0" onclick="svcLoadVersion()">↺ Обновить</button>
+      </div>
+      <div id="svc-version-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:4px">
+        <div style="font-size:12px;color:var(--ink4)">Загрузка…</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Логи — полная ширина -->
   <div class="svc-grid full">
     <div class="svc-card">
@@ -2792,6 +3086,52 @@ html[data-theme="dark"] .note-card-action-btn{background:rgba(0,0,0,.4)}
         </div>
       </div>
       <div class="svc-log-box" id="svc-log-box">Нажмите «Обновить» для загрузки логов…</div>
+    </div>
+  </div>
+
+  <!-- Audit Log — полная ширина -->
+  <div class="svc-grid full" style="margin-top:0">
+    <div class="svc-card">
+      <div class="svc-card-title" style="justify-content:space-between">
+        <div><span>📋</span> Audit Log</div>
+        <button class="svc-btn" style="width:auto;padding:5px 12px;font-size:11px;margin:0" onclick="auditLoad()">↺ Обновить</button>
+      </div>
+      <!-- Фильтры -->
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+        <input id="audit-filter-table" type="text" placeholder="Таблица…" style="flex:1;min-width:100px;padding:7px 10px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--ink);font-family:inherit;outline:none">
+        <select id="audit-filter-action" style="flex:1;min-width:100px;padding:7px 10px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--ink);font-family:inherit;outline:none;cursor:pointer">
+          <option value="">Все действия</option>
+          <option value="INSERT">INSERT</option>
+          <option value="UPDATE">UPDATE</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+        <input id="audit-filter-user" type="text" placeholder="Пользователь…" style="flex:1;min-width:100px;padding:7px 10px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--ink);font-family:inherit;outline:none">
+        <input id="audit-filter-from" type="date" style="flex:1;min-width:120px;padding:7px 10px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--ink);font-family:inherit;outline:none">
+        <input id="audit-filter-to" type="date" style="flex:1;min-width:120px;padding:7px 10px;font-size:12px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--ink);font-family:inherit;outline:none">
+        <button class="svc-btn" style="width:auto;padding:7px 14px;font-size:12px;margin:0" onclick="auditLoad()">Применить</button>
+      </div>
+      <div id="audit-total" style="font-size:11px;color:var(--ink4);margin-bottom:8px"></div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="color:var(--ink4);border-bottom:1px solid var(--border)">
+              <th style="text-align:left;padding:6px 8px;font-weight:600">Время</th>
+              <th style="text-align:left;padding:6px 8px;font-weight:600">Таблица</th>
+              <th style="text-align:left;padding:6px 8px;font-weight:600">Действие</th>
+              <th style="text-align:left;padding:6px 8px;font-weight:600">Пользователь</th>
+              <th style="text-align:left;padding:6px 8px;font-weight:600">Изменения</th>
+            </tr>
+          </thead>
+          <tbody id="audit-tbody">
+            <tr><td colspan="5" style="padding:20px;text-align:center;color:var(--ink4)">Нажмите «Обновить»</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+        <button class="svc-btn" style="width:auto;padding:5px 12px;font-size:11px;margin:0" id="audit-prev-btn" onclick="auditPage(-1)" disabled>← Назад</button>
+        <span id="audit-page-info" style="font-size:11px;color:var(--ink4)"></span>
+        <button class="svc-btn" style="width:auto;padding:5px 12px;font-size:11px;margin:0" id="audit-next-btn" onclick="auditPage(1)">Вперёд →</button>
+      </div>
     </div>
   </div>
 
@@ -2807,7 +3147,47 @@ const API_BASE='/api';
 const AI_DEFAULT_URL = 'cf1c4985-53e5-429a-961a-7797f8e0ab8c';
 const AI_DEFAULT_ACCESS_ID = 'cf1c4985-53e5-429a-961a-7797f8e0ab8c';
 let STAGES=[],SELECTED_YEAR=new Date().getFullYear(),CURRENT_USER=null;
-let _contacts=[],_services=[],_equipment=[],_consumables=[],_maintenanceHistory=[], _expenseCategories=[], _allDeals=[];
+let CURRENT_PROJECT = localStorage.getItem('crm_project') || 'pokos';
+
+// ── FLATPICKR HELPER ──────────────────────────────────────────────────────────
+// Универсальная инициализация: вызвать один раз при открытии модала.
+// id       — id инпута
+// opts     — дополнительные опции (необязательно)
+// Возвращает экземпляр flatpickr.
+function initFp(id, opts={}) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  if (el._flatpickr) return el._flatpickr;
+  return flatpickr(el, {
+    locale: 'ru',
+    dateFormat: 'd.m.Y',
+    allowInput: false,
+    disableMobile: true,
+    ...opts,
+  });
+}
+// Установить дату в flatpickr-поле по ISO-строке ('2026-03-21') или очистить.
+function fpSet(id, isoVal) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const fp = el._flatpickr || initFp(id);
+  if (!fp) return;
+  if (isoVal) fp.setDate(isoVal, false, 'Y-m-d');
+  else fp.clear();
+}
+// Получить ISO-дату из flatpickr-поля ('2026-03-21') или null.
+function fpGet(id) {
+  const el = document.getElementById(id);
+  if (!el || !el._flatpickr) return el ? (el.value || null) : null;
+  const d = el._flatpickr.selectedDates[0];
+  if (!d) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+// Хелперы для определения победного/проигрышного этапа
+function isWonStage(stage){ const n=(stage?.name||'').toLowerCase(); return stage?.is_final && (n.includes('успешн') || n.includes('выполнен')); }
+function isLostStage(stage){ return stage?.is_final && !isWonStage(stage); }
+let _contacts=[],_services=[],_electricServices=[],_equipment=[],_consumables=[],_maintenanceHistory=[], _expenseCategories=[], _allDeals=[];
 let _selectedEquipmentId = null;
 
 function fmt(n, z = '—'){return n != null ? Math.round(n).toLocaleString('ru')+'\u00a0₽' : z}
@@ -2877,7 +3257,8 @@ function closeLostReasonModal(confirmPick){
 async function moveDealToStage(deal, stage, newStageName, oldStageName){
   deal.stage = newStageName;
   renderKanban(_deals);
-  const isLostFinal = !!(stage && stage.is_final && !String(stage.name||'').toLowerCase().includes('успеш'));
+  const isLostFinal = isLostStage(stage);
+  const isWonFinal  = isWonStage(stage);
   let lostReason = null;
   if(isLostFinal){
     lostReason = await askLostReason();
@@ -2897,11 +3278,90 @@ async function moveDealToStage(deal, stage, newStageName, oldStageName){
     }
     showToast('✓ → '+newStageName);
     if(stage.is_final) loadData(SELECTED_YEAR,true);
+    // Триггер успешной сделки
+    if(isWonFinal) await askWonTrigger(deal.id);
   }catch(e){
     deal.stage = oldStageName;
     renderKanban(_deals);
     showToast('✕ Не удалось изменить этап');
   }
+}
+
+// ── ТРИГГЕР: УСПЕШНАЯ СДЕЛКА ──────────────────────────────────────────────────
+let _wonTriggerResolver = null;
+let _wonTriggerDealId   = null;
+
+function askWonTrigger(dealId) {
+  _wonTriggerDealId = dealId;
+  document.getElementById('won-trigger-hours').value = '';
+  document.getElementById('deal-won-trigger-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('won-trigger-hours').focus(), 100);
+  return new Promise(resolve => { _wonTriggerResolver = resolve; });
+}
+
+async function closeWonTrigger(save) {
+  document.getElementById('deal-won-trigger-overlay').classList.remove('open');
+  const resolver = _wonTriggerResolver;
+  _wonTriggerResolver = null;
+  if(save && _wonTriggerDealId) {
+    const hours = parseFloat(document.getElementById('won-trigger-hours').value) || null;
+    if(hours) {
+      try {
+        await api(`/deals/${_wonTriggerDealId}`, {method:'PATCH', body: JSON.stringify({duration_hours: hours})});
+        showToast('✓ Время сохранено');
+      } catch(e) {}
+    }
+  }
+  if(resolver) resolver();
+}
+
+let _dealsSearchTimer = null;
+function onDealsSearch(q) {
+  clearTimeout(_dealsSearchTimer);
+  _dealsSearchTimer = setTimeout(async () => {
+    if (!q.trim()) {
+      renderKanban(_deals);
+      return;
+    }
+    const term = q.trim().toLowerCase();
+    const filtered = _deals.filter(d =>
+      d.title.toLowerCase().includes(term) ||
+      (d.client || '').toLowerCase().includes(term)
+    );
+    // Если нашли локально — показываем сразу, иначе идём на сервер
+    if (filtered.length > 0) {
+      _renderKanbanFiltered(filtered);
+    } else {
+      try {
+        const data = await api(`/deals?project=${CURRENT_PROJECT}&q=${encodeURIComponent(q.trim())}`);
+        _renderKanbanFiltered(data.deals || []);
+      } catch(e) {}
+    }
+  }, 300);
+}
+
+function _renderKanbanFiltered(deals) {
+  const board = document.getElementById('kanban-board');
+  if (!STAGES.length) return;
+  board.innerHTML = STAGES.map(st => {
+    const c = st.color || '#7ab566';
+    const cards = deals.filter(d => d.stage === st.name);
+    const total = cards.reduce((s, d) => s + d.total, 0);
+    const cardsHtml = cards.length
+      ? cards.map(d => `<div class="k-card" draggable="true" data-id="${d.id}" onclick="openDealModal(${d.id})" data-stage="${esc(st.name)}" style="--c:${c}">
+          <div class="k-sum">${fmt(d.total)}</div>
+          <div class="k-title">${d.title}</div>
+          <div class="k-client">${d.client}</div>
+          <div class="k-hr"></div>
+          <div class="k-date">${fmtDate(d.created_at)}</div>
+        </div>`).join('')
+      : `<div class="empty"><div class="empty-ico" style="font-size:20px">•</div><div class="empty-txt">Пусто</div></div>`;
+    return `<div class="k-col" data-stage="${esc(st.name)}">
+      <div class="k-head"><div class="k-dot" style="background:${c}"></div><span class="k-name" style="color:${c}">${st.name}</span><span class="k-count">${cards.length}</span></div>
+      <div class="k-total" style="${cards.length ? '' : 'visibility:hidden'}">${fmt(total)}</div>
+      <div class="k-cards">${cardsHtml}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderKanban(deals=[]){
@@ -3127,7 +3587,7 @@ async function unarchiveDeal(dealId){
 async function failArchivedDeal(dealId){
   const reason = await askLostReason();
   if(!reason) return;
-  const lostStage = STAGES.find(s=>s.is_final && !s.name.toLowerCase().includes('успеш'));
+  const lostStage = STAGES.find(s => isLostStage(s));
   if(!lostStage){ showToast('✕ Нет этапа провала'); return; }
   try{
     await api(`/deals/${dealId}/unarchive`,{method:'POST'});
@@ -3157,7 +3617,7 @@ async function renderArchiveList(){
   if(!container) return;
   container.innerHTML = '<p style="color:var(--ink4);font-size:13px">Загрузка...</p>';
   try{
-    const data = await api('/deals/archived');
+    const data = await api('/deals/archived?project='+CURRENT_PROJECT);
     const deals = data.deals || [];
     if(!deals.length){
       container.innerHTML = '<p style="color:var(--ink4);font-size:13px;text-align:center;padding:24px 0">Архив пуст</p>';
@@ -3191,7 +3651,6 @@ let _dealMaterials = [];
 let _currentDealData = null;
 
 async function setupDealModal(dealId = null) {
-    const titleEl = document.getElementById('d-modal-title');
     const saveBtn = document.getElementById('btn-deal-save');
     const deleteBtn = document.getElementById('btn-deal-delete');
     const contactList = document.getElementById('d-contact-list');
@@ -3226,12 +3685,12 @@ async function setupDealModal(dealId = null) {
     document.getElementById('d-work-date')._flatpickr ? document.getElementById('d-work-date')._flatpickr.clear() : (document.getElementById('d-work-date').value = '');
     document.getElementById('d-work-time').value = '';
     document.getElementById('d-address').value = '';
+    document.getElementById('d-duration-hours').value = '';
 
     const users = await api('/users').catch(() => []);
     assigneeSel.innerHTML = `<option value="">Не назначен</option>` + users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
 
     if (dealId) {
-        titleEl.innerHTML = `Сделка <em>№${dealId}</em>`;
         saveBtn.textContent = 'Сохранить';
         deleteBtn.style.display = 'block';
         deleteBtn.onclick = () => deleteDeal(dealId);
@@ -3252,16 +3711,23 @@ async function setupDealModal(dealId = null) {
         if(document.getElementById('d-tax-on-materials')) document.getElementById('d-tax-on-materials').checked = deal.tax_on_materials || false;
         document.getElementById('d-tax-amount').value = fmt(deal.tax_amount);
 
-        if (deal.deal_date) {
-            const dt = new Date(deal.deal_date);
+        const _workDateVal = deal.work_date || deal.deal_date;
+        if (_workDateVal) {
+            const dt = new Date(_workDateVal);
             const _wp = document.getElementById('d-work-date');
             if(_wp._flatpickr) _wp._flatpickr.setDate(dt, false);
             else _wp.value = dt.toISOString().slice(0, 10);
-            document.getElementById('d-work-time').value = dt.toTimeString().slice(0, 5);
+            document.getElementById('d-work-time').value = deal.work_time ? deal.work_time.slice(0,5) : dt.toTimeString().slice(0, 5);
         }
         document.getElementById('d-address').value = deal.address || '';
+        document.getElementById('d-duration-hours').value = deal.duration_hours ?? '';
 
-        _dealItems = deal.services.map(s => ({
+        // Загружаем услуги в зависимости от проекта
+        const dealProject = deal.project || 'pokos';
+        const rawServices = dealProject === 'electric'
+            ? (deal.electric_services || [])
+            : (deal.services || []);
+        _dealItems = rawServices.map(s => ({
             id: s.service.id,
             name: s.service.name,
             price: s.price_at_moment, 
@@ -3276,51 +3742,62 @@ async function setupDealModal(dealId = null) {
             sell_price: m.sell_price
         }));
 
-        // Показываем и загружаем комментарии
-        document.getElementById('dcomments-wrap').style.display = 'block';
+        // Показываем вкладки и загружаем данные
+        document.getElementById('deal-tabs-wrap').style.display = 'block';
+        switchDealTab('files', document.querySelector('.deal-tab-btn[onclick*="files"]'));
+        // Заметки
+        document.getElementById('d-notes').value = deal.notes || '';
         loadDealComments(dealId);
-        // Показываем и загружаем файлы
-        document.getElementById('deal-files-wrap').style.display = 'block';
         dealLoadFiles(dealId);
-        // Показываем AI-панель
-        document.getElementById('deal-ai-panel').style.display = 'block';
+        // Сброс AI
         document.getElementById('deal-ai-answer').style.display = 'none';
         document.getElementById('deal-ai-answer').textContent = '';
         document.getElementById('deal-ai-actions').style.display = 'none';
         document.getElementById('deal-ai-input').value = '';
 
-        // Кнопка повтора
+        // Кнопка повтора и инфо
         _currentDealData = deal;
-        const repeatBtn = document.getElementById('btn-deal-repeat');
-        if (repeatBtn) {
-          repeatBtn.style.display = 'inline-flex';
-          if (deal.repeat_interval_days) {
-            repeatBtn.textContent = `↻ Повтор каждые ${deal.repeat_interval_days} дн.`;
-            repeatBtn.style.borderColor = 'var(--sage)';
-            repeatBtn.style.color = 'var(--sage)';
+        const contactLink = document.getElementById('d-contact-link');
+        if (contactLink) {
+          if (deal.contact_id) {
+            contactLink.style.display = 'inline';
+            contactLink.dataset.contactId = deal.contact_id;
           } else {
-            repeatBtn.textContent = '↻ Повтор';
-            repeatBtn.style.borderColor = '';
-            repeatBtn.style.color = '';
+            contactLink.style.display = 'none';
           }
         }
+        const repeatBtn = document.getElementById('btn-deal-repeat');
+        const repeatInfo = document.getElementById('d-repeat-info');
+        if (repeatBtn) repeatBtn.style.display = 'inline-flex';
+        if (repeatInfo) {
+          repeatInfo.textContent = deal.repeat_interval_days
+            ? `каждые ${deal.repeat_interval_days} дн., следующий: ${deal.next_repeat_date ? fmtDate(deal.next_repeat_date) : '—'}`
+            : '— не задан';
+          repeatInfo.style.color = deal.repeat_interval_days ? 'var(--sage)' : 'var(--ink4)';
+        }
+        // Кнопка дублировать
+        const dupBtn = document.getElementById('btn-deal-duplicate');
+        if (dupBtn) dupBtn.style.display = 'inline-flex';
 
     } else {
-        titleEl.innerHTML = 'Новая <em>сделка</em>';
         saveBtn.textContent = 'Создать';
         deleteBtn.style.display = 'none';
         _currentDealData = null;
         const repeatBtn = document.getElementById('btn-deal-repeat');
-        if (repeatBtn) { repeatBtn.style.display = 'none'; }
+        if (repeatBtn) repeatBtn.style.display = 'none';
+        const repeatInfo = document.getElementById('d-repeat-info');
+        if (repeatInfo) { repeatInfo.textContent = '— не задан'; repeatInfo.style.color = 'var(--ink4)'; }
+        const dupBtn = document.getElementById('btn-deal-duplicate');
+        if (dupBtn) dupBtn.style.display = 'none';
+        const contactLink2 = document.getElementById('d-contact-link');
+        if (contactLink2) contactLink2.style.display = 'none';
         saveBtn.onclick = () => saveDeal();
         stageSel.innerHTML = STAGES.filter(s => !s.is_final).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
         if (CURRENT_USER?.sub) assigneeSel.value = CURRENT_USER.sub;
         _dealItems = [];
         _dealMaterials = [];
         _currentDealId = null;
-        document.getElementById('dcomments-wrap').style.display = 'none';
-        document.getElementById('deal-files-wrap').style.display = 'none';
-        document.getElementById('deal-ai-panel').style.display = 'none';
+        document.getElementById('deal-tabs-wrap').style.display = 'none';
     }
 
     renderDealServices();
@@ -3379,6 +3856,47 @@ async function openDealModal(dealId = null) {
 function closeDealModal() { document.getElementById('deal-overlay').classList.remove('open'); }
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDealModal() });
 
+function switchDealTab(tab, btn) {
+  document.querySelectorAll('.deal-tab-panel').forEach(p => p.style.display = 'none');
+  document.querySelectorAll('.deal-tab-btn').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('deal-tab-' + tab);
+  if (panel) panel.style.display = 'block';
+  if (btn) btn.classList.add('active');
+}
+
+let _notesSaveTimer = null;
+function debounceSaveNotes() {
+  clearTimeout(_notesSaveTimer);
+  _notesSaveTimer = setTimeout(async () => {
+    if (!_currentDealId) return;
+    const notes = document.getElementById('d-notes')?.value ?? '';
+    try {
+      await api(`/deals/${_currentDealId}`, {method:'PATCH', body: JSON.stringify({notes})});
+    } catch(e) {}
+  }, 800);
+}
+
+async function duplicateDeal() {
+  if (!_currentDealId) return;
+  if (!confirm('Создать копию этой сделки?')) return;
+  try {
+    const data = await api(`/deals/${_currentDealId}/duplicate`, {method:'POST'});
+    closeDealModal();
+    showToast('✓ Сделка продублирована');
+    loadData(SELECTED_YEAR, true);
+    setTimeout(() => openDealModal(data.id), 600);
+  } catch(e) {}
+}
+
+function goToContactFromDeal(e) {
+  e.preventDefault();
+  const link = document.getElementById('d-contact-link');
+  const contactId = link?.dataset.contactId;
+  if (!contactId) return;
+  closeDealModal();
+  openContactCard(parseInt(contactId));
+}
+
 function addDealService(service) {
     const existingItem = _dealItems.find(item => item.id === service.id);
     if (existingItem) {
@@ -3392,6 +3910,15 @@ function addDealService(service) {
 function removeDealService(serviceId) {
     _dealItems = _dealItems.filter(item => item.id !== serviceId);
     renderDealServices();
+}
+
+function updateDealServicePrice(serviceId, newPrice) {
+    const item = _dealItems.find(item => item.id === serviceId);
+    if (item) {
+        const p = parseFloat(newPrice);
+        if (!isNaN(p) && p >= 0) item.price = p;
+    }
+    calculateDealTotal();
 }
 
 function updateDealServiceQty(serviceId, newQuantity) {
@@ -3424,7 +3951,7 @@ function renderDealServices() {
         tbody.innerHTML = _dealItems.map(item => `
             <tr>
                 <td>${item.name} ${item.id === -1 ? '<small style="color:var(--red)">[удалена]</small>' : ''}</td>
-                <td>${fmt(item.price)}</td>
+                <td><input type="number" value="${item.price}" min="0" step="1" oninput="updateDealServicePrice(${item.id}, this.value)" style="width:80px;text-align:center;font-size:13px;padding:6px 4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-family:'Playfair Display',serif;font-weight:600;color:var(--ink);outline:none;transition:border .2s" onfocus="this.style.borderColor='var(--sage)'" onblur="this.style.borderColor='var(--border)'"></td>
                 <td><input type="number" value="${item.quantity}" min="0.1" step="0.1" oninput="updateDealServiceQty(${item.id}, this.value)" onblur="commitDealServiceQty(${item.id}, this.value)" style="width:72px;text-align:center;font-size:13px;padding:6px 4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-family:'Playfair Display',serif;font-weight:600;color:var(--ink);outline:none;transition:border .2s" onFocus="this.style.borderColor='var(--sage)'" onBlur="this.style.borderColor='var(--border)'"></td>
                 <td>${fmt(item.price * item.quantity)}</td>
                 <td><button class="btn-del" onclick="removeDealService(${item.id})" title="Удалить">⊗</button></td>
@@ -3540,6 +4067,7 @@ async function saveDeal(dealId = null) {
   const work_date = (_wpSave.dataset.iso || _wpSave.value || '').replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1') || null;
   const work_time = document.getElementById('d-work-time').value || null;
   const address = document.getElementById('d-address').value.trim() || null;
+  const duration_hours = parseFloat(document.getElementById('d-duration-hours').value) || null;
 
   if (!title) { document.getElementById('d-title').classList.add('err'); return; }
   if (_dealItems.length === 0) { showToast('✕ Добавьте хотя бы одну услугу'); return; }
@@ -3548,11 +4076,13 @@ async function saveDeal(dealId = null) {
   const invalidMat = _dealMaterials.find(m => !m.name.trim());
   if (invalidMat) { showToast('✕ Заполните название материала'); return; }
 
+  const isElectric = CURRENT_PROJECT === 'electric';
   const dealData = { 
       title, 
       stage_id, 
       manager: manager || null,
-      services: _dealItems.filter(i => i.id > 0).map(item => ({ service_id: item.id, quantity: item.quantity })),
+      services: isElectric ? [] : _dealItems.filter(i => i.id > 0).map(item => ({ service_id: item.id, quantity: item.quantity, custom_price: item.price })),
+      electric_services: isElectric ? _dealItems.filter(i => i.id > 0).map(item => ({ electric_service_id: item.id, quantity: item.quantity, custom_price: item.price })) : [],
       materials: _dealMaterials.map(m => ({ name: m.name.trim(), quantity: m.quantity || 1, cost_price: m.cost_price || 0, sell_price: m.sell_price || 0 })),
       discount,
       discount_type,
@@ -3562,6 +4092,8 @@ async function saveDeal(dealId = null) {
       work_date,
       work_time,
       address,
+      duration_hours,
+      project: CURRENT_PROJECT,
   };
   
   const contact_id = getContactIdByName(contactName);
@@ -3599,7 +4131,7 @@ let _itemSelectorSource = [];
 function openItemSelectorModal(type) {
     document.getElementById('item-selector-search').value = '';
     if (type === 'service') {
-        _itemSelectorSource = _services;
+        _itemSelectorSource = CURRENT_PROJECT === 'electric' ? _electricServices : _services;
         _itemSelectorCallback = (item) => addDealService(item);
     } else if (type === 'consumable') {
         _itemSelectorSource = _consumables;
@@ -3752,16 +4284,19 @@ function ccardToggleEdit() {
 }
 
 function ccardNewDeal() {
-    // Открыть модал новой сделки с предзаполненным контактом
+    const c = _contacts.find(c => c.id === _currentContactId);
+    const contactId = _currentContactId;
+    const contactName = c ? c.name : null;
     closeContactModal();
-    // Небольшая задержка чтобы анимация закрытия успела
-    setTimeout(() => {
-        openDealModal(null);
-        // Предзаполнить контакт — ищем по id в уже загруженных
-        const c = _contacts.find(c => c.id === _currentContactId);
-        if (c) {
+    setTimeout(async () => {
+        await openDealModal(null);
+        if (contactName) {
             const inp = document.getElementById('d-contact-input');
-            if (inp) inp.value = c.name;
+            if (inp) inp.value = contactName;
+        }
+        if (contactId) {
+            // Подставляем адреса контакта в datalist
+            filterContactAddresses('');
         }
     }, 200);
 }
@@ -4208,9 +4743,15 @@ function openEquipmentModal(eq = null) {
     const deleteBtn = document.getElementById('btn-equipment-delete');
 
     _currentEquipmentId = null;
-    const fields = ['name', 'model', 'serial', 'purchase-date', 'purchase-cost', 'status', 'engine-hours', 'fuel-norm', 'last-maintenance', 'next-maintenance', 'notes'];
+    const fields = ['name', 'model', 'serial', 'purchase-cost', 'status', 'engine-hours', 'fuel-norm', 'notes'];
     fields.forEach(f => document.getElementById(`eq-${f}`).value = '');
     document.getElementById('eq-status').value = 'active';
+    initFp('eq-purchase-date');
+    initFp('eq-last-maintenance');
+    initFp('eq-next-maintenance');
+    fpSet('eq-purchase-date', null);
+    fpSet('eq-last-maintenance', null);
+    fpSet('eq-next-maintenance', null);
 
     if (eq) {
         _currentEquipmentId = eq.id;
@@ -4218,13 +4759,13 @@ function openEquipmentModal(eq = null) {
         document.getElementById('eq-name').value = eq.name || '';
         document.getElementById('eq-model').value = eq.model || '';
         document.getElementById('eq-serial').value = eq.serial || '';
-        document.getElementById('eq-purchase-date').value = toISODate(eq.purchase_date);
+        fpSet('eq-purchase-date', toISODate(eq.purchase_date));
         document.getElementById('eq-purchase-cost').value = eq.purchase_cost;
         document.getElementById('eq-status').value = eq.status || 'active';
         document.getElementById('eq-engine-hours').value = eq.engine_hours;
         document.getElementById('eq-fuel-norm').value = eq.fuel_norm;
-        document.getElementById('eq-last-maintenance').value = toISODate(eq.last_maintenance_date);
-        document.getElementById('eq-next-maintenance').value = toISODate(eq.next_maintenance_date);
+        fpSet('eq-last-maintenance', toISODate(eq.last_maintenance_date));
+        fpSet('eq-next-maintenance', toISODate(eq.next_maintenance_date));
         document.getElementById('eq-notes').value = eq.notes || '';
 
         saveBtn.textContent = 'СОХРАНИТЬ';
@@ -4255,13 +4796,13 @@ async function saveEquipment() {
         name,
         model: document.getElementById('eq-model').value.trim() || null,
         serial: document.getElementById('eq-serial').value.trim() || null,
-        purchase_date: document.getElementById('eq-purchase-date').value || null,
+        purchase_date: fpGet('eq-purchase-date') || null,
         purchase_cost: parseFloat(document.getElementById('eq-purchase-cost').value) || null,
         status: document.getElementById('eq-status').value,
         engine_hours: parseFloat(document.getElementById('eq-engine-hours').value) || null,
         fuel_norm: parseFloat(document.getElementById('eq-fuel-norm').value) || null,
-        last_maintenance_date: document.getElementById('eq-last-maintenance').value || null,
-        next_maintenance_date: document.getElementById('eq-next-maintenance').value || null,
+        last_maintenance_date: fpGet('eq-last-maintenance') || null,
+        next_maintenance_date: fpGet('eq-next-maintenance') || null,
         notes: document.getElementById('eq-notes').value.trim() || null,
     };
 
@@ -4298,7 +4839,8 @@ async function openMaintenanceModal(mId = null) {
     
     _currentMaintenanceId = null;
     document.getElementById('m-work').classList.remove('err');
-    document.getElementById('m-date').value = toISODate(new Date());
+    initFp('m-date');
+    fpSet('m-date', toISODate(new Date()));
     document.getElementById('m-work').value = '';
     document.getElementById('m-notes').value = '';
 
@@ -4309,7 +4851,7 @@ async function openMaintenanceModal(mId = null) {
         
         selectEquipment(m.equipment_id, document.querySelector(`#equipment-tbody tr[data-id="${m.equipment_id}"]`));
         title.innerHTML = `Запись <em>о ТО #${m.id}</em>`;
-        document.getElementById('m-date').value = toISODate(m.date);
+        fpSet('m-date', toISODate(m.date));
         document.getElementById('m-work').value = m.work_description || '';
         document.getElementById('m-notes').value = m.notes || '';
         saveBtn.textContent = 'СОХРАНИТЬ';
@@ -4452,7 +4994,7 @@ async function saveMaintenance() {
     if (!work) { document.getElementById('m-work').classList.add('err'); return; }
     
     const data = {
-        date: document.getElementById('m-date').value || toISODate(new Date()),
+        date: fpGet('m-date') || toISODate(new Date()),
         work_description: work,
         notes: document.getElementById('m-notes').value.trim() || null,
         consumables: _maintenanceItems.map(item => {
@@ -4581,7 +5123,7 @@ async function openExpenseModal(expense = null) {
     const deleteBtn = document.getElementById('btn-expense-delete');
     
     categoryList.innerHTML = _expenseCategories.map(c => `<option value="${esc(c.name)}">`).join('');
-
+    initFp('ex-date');
     nameInput.classList.remove('err');
     amountInput.classList.remove('err');
     _currentExpenseId = null;
@@ -4594,7 +5136,7 @@ async function openExpenseModal(expense = null) {
         title.innerHTML = 'Редактировать <em>расход</em>';
         nameInput.value = expenseObj.name || '';
         amountInput.value = expenseObj.amount || '';
-        dateInput.value = toISODate(expenseObj.date) || '';
+        fpSet('ex-date', toISODate(expenseObj.date) || '');
         categoryInput.value = expenseObj.category || '';
         saveBtn.textContent = 'СОХРАНИТЬ';
         deleteBtn.style.display = 'block';
@@ -4603,7 +5145,7 @@ async function openExpenseModal(expense = null) {
         title.innerHTML = 'Новый <em>расход</em>';
         nameInput.value = '';
         amountInput.value = '';
-        dateInput.valueAsDate = new Date();
+        fpSet('ex-date', new Date().toISOString().slice(0,10));
         categoryInput.value = '';
         saveBtn.textContent = 'СОЗДАТЬ';
         deleteBtn.style.display = 'none';
@@ -4623,7 +5165,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeExpense
 async function saveExpense() {
     const name = document.getElementById('ex-name').value.trim();
     const amount = parseFloat(document.getElementById('ex-amount').value);
-    const date = document.getElementById('ex-date').value;
+    const date = fpGet('ex-date');
     const category = document.getElementById('ex-category').value.trim();
 
     if (!name || !amount) {
@@ -4631,7 +5173,7 @@ async function saveExpense() {
         document.getElementById('ex-amount').classList.toggle('err', !amount);
         return;
     }
-    const data = { name, amount, date: date || toISODate(new Date()) || new Date().toISOString().split('T')[0], category };
+    const data = { name, amount, date: date || toISODate(new Date()) || new Date().toISOString().split('T')[0], category, project: CURRENT_PROJECT };
 
     try {
         const endpoint = _currentExpenseId ? `/expenses/${_currentExpenseId}` : '/expenses';
@@ -4680,7 +5222,8 @@ async function openTaskModal(taskId = null, prefillContactId = null, prefillDeal
     const dealSel = document.getElementById('t-deal-select');
 
     titleEl.value = ''; descEl.value = ''; contactInp.value = '';
-    dateEl.valueAsDate = new Date(Date.now() + 864e5);
+    initFp('t-date');
+    fpSet('t-date', new Date(Date.now() + 864e5).toISOString().slice(0,10));
     priorityEl.value = 'Обычный'; statusEl.value = 'Открыта';
     titleEl.classList.remove('err');
     deleteBtn.style.display = 'none';
@@ -4713,7 +5256,7 @@ async function openTaskModal(taskId = null, prefillContactId = null, prefillDeal
             if (task) {
                 titleEl.value = task.title || '';
                 descEl.value = task.description || '';
-                if (task.due_date) dateEl.value = toISODate(task.due_date);
+                if (task.due_date) fpSet('t-date', toISODate(task.due_date));
                 priorityEl.value = task.priority || 'Обычный';
                 statusEl.value = task.status || 'Открыта';
                 await populateAssignees(task.assignee);
@@ -4755,7 +5298,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeTaskModal()});
 async function saveTask(){
   const title=document.getElementById('t-title').value.trim();
   const description=document.getElementById('t-desc').value.trim();
-  const due_date=document.getElementById('t-date').value;
+  const due_date = fpGet('t-date');
   const priority=document.getElementById('t-priority').value;
   const status=document.getElementById('t-status').value;
   const assignee=document.getElementById('t-assignee').value;
@@ -4771,7 +5314,7 @@ async function saveTask(){
     const method = _currentTaskId ? 'PATCH' : 'POST';
     const ep = _currentTaskId ? `/tasks/${_currentTaskId}` : '/tasks';
     const is_done = status === 'Выполнена';
-    await api(ep,{method, body:JSON.stringify({title,description,due_date:due_date||null,priority,status,assignee,is_done,contact_id,deal_id})});
+    await api(ep,{method, body:JSON.stringify({title,description,due_date:due_date||null,priority,status,assignee,is_done,contact_id,deal_id,project:CURRENT_PROJECT})});
     closeTaskModal();
     showToast(_currentTaskId ? '✓ Сохранено' : '✓ Задача добавлена');
     loadTasks(document.getElementById('btn-tasks-done').classList.contains('active'));
@@ -4789,7 +5332,7 @@ async function loadTasks(isDone){
   document.getElementById('btn-tasks-active').classList.toggle('active', !isDone);
   document.getElementById('btn-tasks-done').classList.toggle('active', isDone);
   const priority = document.getElementById('tasks-priority-filter')?.value || '';
-  let url = `/tasks?is_done=${isDone}`;
+  let url = `/tasks?is_done=${isDone}&project=${CURRENT_PROJECT}`;
   if (priority) url += `&priority=${encodeURIComponent(priority)}`;
   const tasks = await api(url);
   renderTasks(tasks || []);
@@ -4887,21 +5430,33 @@ function renderMaintenanceHistory(history) {
     countEl.textContent = history.length ? `${history.length} записей` : '';
 }
 
-function renderServices(services=[]){
-    _services = services;
-    const tb = document.getElementById('services-tbody');
-    const cnt = document.getElementById('services-count');
-    if (cnt) cnt.textContent = services.length ? services.length + ' услуг' : '';
-    tb.innerHTML = services.length ? services.map(s => 
-        `<tr onclick='openServiceModal(${JSON.stringify(s)})'>
-            <td>${s.id}</td>
-            <td style="color:var(--ink);font-weight:400">${s.name}</td>
-            <td style="color:var(--ink3);font-size:11px">${s.unit || '—'}</td>
-            <td><span class="money">${fmt(s.price)}</span></td>
-            <td style="color:var(--ink3);font-size:11px">${s.min_volume != null ? 'от ' + s.min_volume : '—'}</td>
-            <td style="color:var(--ink4);font-size:11px; white-space: pre-wrap; max-width: 300px;">${s.notes || '—'}</td>
-        </tr>`
-    ).join('') : empty(6, 'Услуг не найдено');
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+function renderServices(services=[], isElectric=false){
+  if(isElectric){ _electricServices = services; } else { _services = services; }
+  const tb = document.getElementById("services-tbody");
+  const cnt = document.getElementById("services-count");
+  if(cnt) cnt.textContent = services.length ? services.length + " услуг" : "";
+  if(!tb) return;
+  tb.innerHTML = services.length
+    ? services.map((s,i) => "<tr onclick='openServiceModal("+JSON.stringify(s)+")'><td>"+(i+1)+"</td><td style='color:var(--ink);font-weight:400'>"+s.name+"</td><td class='col-hide-mobile'>"+(s.unit||"шт")+"</td><td><span class='money'>"+(s.price>0?fmt(s.price):"—")+"</span></td><td class='col-hide-mobile'>"+(s.min_volume||1)+"</td><td class='col-hide-mobile' style='color:var(--ink4);font-size:11px'>"+(s.notes||"—")+"</td></tr>").join("")
+    : "<tr><td colspan='6' style='text-align:center;color:var(--ink4);padding:24px'>Услуг не найдено</td></tr>";
 }
 
 function renderConsumables(items=[]){
@@ -5032,7 +5587,8 @@ let _currentTaxPaymentId = null;
 function openTaxPaymentModal(payment) {
     _currentTaxPaymentId = payment.id;
     document.getElementById('tp-amount').value = payment.amount || '';
-    document.getElementById('tp-date').value = toISODate(payment.date);
+    initFp('tp-date');
+    fpSet('tp-date', toISODate(payment.date));
     document.getElementById('tp-note').value = payment.note || '';
     document.getElementById('btn-tp-save').onclick = saveTaxPaymentEdit;
     document.getElementById('btn-tp-delete').onclick = () => deleteTaxPayment(payment.id);
@@ -5045,7 +5601,7 @@ function closeTaxPaymentModal() {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeTaxPaymentModal(); });
 async function saveTaxPaymentEdit() {
     const amount = parseFloat(document.getElementById('tp-amount').value);
-    const date = document.getElementById('tp-date').value;
+    const date = fpGet('tp-date');
     if (!amount || amount <= 0) { showToast('✕ Введите корректную сумму'); return; }
     if (!date) { showToast('✕ Укажите дату'); return; }
     try {
@@ -5069,7 +5625,7 @@ async function deleteTaxPayment(id) {
 }
 
 function buildDash(deals, expenses, equipment, taxSummary){
-  const successfulStages = STAGES.filter(s => s.is_final && s.name.toLowerCase().includes('успешно')).map(s => s.name);
+  const successfulStages = STAGES.filter(s => isWonStage(s)).map(s => s.name);
   const inProgressStages = STAGES.filter(s => !s.is_final).map(s => s.name);
   const won = deals.filter(d => successfulStages.includes(d.stage));
   const rev = won.reduce((s,d) => s+d.total, 0);
@@ -5126,7 +5682,7 @@ async function saveTaxPayment() {
     const amountInput = document.getElementById('tax-payment-amount');
     const dateInput = document.getElementById('tax-payment-date');
     const amount = parseFloat(amountInput.value);
-    const date = dateInput.value;
+    const date = fpGet('tax-payment-date');
 
     if (!amount || amount <= 0) {
         showToast('✕ Введите корректную сумму');
@@ -5152,8 +5708,8 @@ async function saveTaxPayment() {
         await api('/taxes/payments', { method: 'POST', body: JSON.stringify(data) });
         showToast('✓ Платёж успешно добавлен');
         amountInput.value = '';
-        dateInput.value = toISODate(new Date());
-        loadData(SELECTED_YEAR, true); // Force reload
+        fpSet('tax-payment-date', toISODate(new Date()));
+        loadData(SELECTED_YEAR, true);
     } catch (e) {
         // showToast is already called in api()
     }
@@ -5168,26 +5724,29 @@ async function loadData(year, force = false){
   showToast('⏳ Загрузка за '+year+'…');
   document.querySelectorAll('.year-display').forEach(el=>el.textContent=year);
   const yp='?year='+year;
+  const pp='&project='+CURRENT_PROJECT;
   const endpoints = {
-      deals: '/deals'+yp, 
-      tasks: `/tasks?year=${year}&is_done=false`, 
-      expenses: '/expenses'+yp,
-      equipment: '/equipment', 
-      services: '/services', 
+      deals: '/deals'+yp+pp,
+      tasks: `/tasks?year=${year}&is_done=false${pp}`,
+      expenses: '/expenses'+yp+pp,
+      equipment: '/equipment',
+      services: '/services',
+      electric_services: CURRENT_PROJECT==='electric' ? '/electric-services' : null,
       consumables: '/consumables',
-      contacts: '/contacts', 
-      stages: '/stages', 
+      contacts: '/contacts',
+      stages: '/stages?project='+CURRENT_PROJECT,
       maintenance: '/maintenance'+yp,
       expense_categories: '/expense-categories',
-      taxes_summary: '/taxes/summary' + yp,
+      taxes_summary: '/taxes/summary' + yp + pp,
       tax_payments: '/taxes/payments' + yp,
-      analytics: '/analytics/funnel' + yp,
-      budget: '/budget' + yp
+      analytics: '/analytics/funnel' + yp + pp,
+      budget: '/budget' + yp + pp
   };
   // admin-only endpoints: silently ignore 403 for non-admin users
   const adminEndpoints = new Set(['expenses','taxes_summary','tax_payments','analytics','budget','expense_categories']);
   const results = await Promise.allSettled(Object.values(endpoints).map((ep, i) => {
     const key = Object.keys(endpoints)[i];
+    if(ep === null) return Promise.resolve(null); // пропускаем неактивные эндпоинты
     return api(ep, {}, adminEndpoints.has(key));
   }));
   const data = {};
@@ -5203,6 +5762,7 @@ async function loadData(year, force = false){
   STAGES=data.stages||[];
   _expenseCategories = data.expense_categories || [];
   _allDeals = data.deals?.deals || data.deals || [];
+  _electricServices = data.electric_services || [];
 
   // Синхронизируем данные календаря если он уже открывался
   if (_calInited) {
@@ -5217,7 +5777,12 @@ async function loadData(year, force = false){
   renderTasks((data.tasks?.tasks || data.tasks) || []);
   renderExpenses((data.expenses?.expenses || data.expenses) || []);
   renderEquipment(data.equipment || []);
-  renderServices(data.services || []);
+  if(CURRENT_PROJECT === 'electric'){
+    renderServices(_electricServices, true);
+  } else {
+    renderServices(data.services || []);
+    _services = data.services || [];
+  }
   renderConsumables(data.consumables || []);
   renderContacts(data.contacts || []);
   renderMaintenanceHistory(data.maintenance || []);
@@ -5276,12 +5841,96 @@ function applyRoleUI(){
   }
 }
 
+function applyProjectUI(){
+  try{
+  const p = CURRENT_PROJECT;
+  const isElectric = p === 'electric';
+
+  // data-project на <html> — переключает CSS тему
+  document.documentElement.setAttribute('data-project', p);
+
+  // Заголовок вкладки браузера
+  document.title = isElectric ? 'ElectricCRM · Управление' : 'GrassCRM · Система управления';
+
+  // Лого
+  const logo = document.getElementById('app-logo');
+  if(logo) logo.innerHTML = isElectric ? 'Electric<em>CRM</em>' : 'Grass<em>CRM</em>';
+
+  // Заголовки страниц
+  const kanbanEyebrow = document.getElementById('kanban-eyebrow');
+  const kanbanTitle   = document.getElementById('kanban-title');
+  const dashEyebrow   = document.getElementById('dash-eyebrow');
+  const dashTitle     = document.getElementById('dash-title');
+  if(kanbanEyebrow) kanbanEyebrow.textContent = isElectric ? 'Проекты' : 'Воронка продаж';
+  if(kanbanTitle)   kanbanTitle.innerHTML = isElectric
+    ? 'Проекты <em>по этапам</em><span class="ph-year year-display"></span>'
+    : 'Сделки <em>по этапам</em><span class="ph-year year-display"></span>';
+  if(dashEyebrow) dashEyebrow.textContent = isElectric ? 'Электрика' : 'Покос Ропша';
+  if(dashTitle)   dashTitle.innerHTML = isElectric
+    ? 'Ключевые <em>показатели</em><span class="ph-year year-display"></span>'
+    : 'Ключевые <em>показатели</em><span class="ph-year year-display"></span>';
+
+  // Обновить year-display в динамических заголовках
+  document.querySelectorAll('.year-display').forEach(el => el.textContent = SELECTED_YEAR);
+
+  // Активная кнопка переключателя
+  document.querySelectorAll('.proj-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = document.getElementById('proj-btn-' + p);
+  if(activeBtn) activeBtn.classList.add('active');
+
+  // Скрыть/показать вкладки которых нет в electric
+  const hideInElectric = ['equipment','stock'];
+  document.querySelectorAll('nav button[data-page], #mobile-nav button[data-page]').forEach(btn => {
+    const page = btn.getAttribute('data-page');
+    btn.style.display = (isElectric && hideInElectric.includes(page)) ? 'none' : '';
+  });
+  // Скрыть карточку техники на дашборде в режиме электрики
+  const equipCard = document.getElementById('kpi-card-equipment');
+  if(equipCard) equipCard.style.display = isElectric ? 'none' : '';
+  }catch(e){ console.error('applyProjectUI error:', e); }
+}
+
+async function switchProject(projectId){
+  if(CURRENT_PROJECT === projectId) return;
+  CURRENT_PROJECT = projectId;
+  localStorage.setItem('crm_project', projectId);
+  applyProjectUI();
+  // Sync mobile proj buttons
+  const mp = document.getElementById('mnav-proj-pokos');
+  const me = document.getElementById('mnav-proj-electric');
+  if(mp) mp.classList.toggle('active', projectId==='pokos');
+  if(me) me.classList.toggle('active', projectId==='electric');
+  // Перейти на дашборд и перезагрузить данные
+  const dashBtn = document.querySelector('nav button[data-page="dash"]');
+  if(dashBtn) showPage('dash', dashBtn);
+  await loadData(SELECTED_YEAR, true);
+}
+
 async function checkAuth(){
   try{
     CURRENT_USER = await api('/me');
+  }catch(e){
+    console.error('checkAuth: /me failed', e);
+    document.getElementById('login-screen').style.display='flex';
+    return;
+  }
+  try{
     document.getElementById('login-screen').style.display='none';
     document.getElementById('app').style.display='block';
     applyRoleUI();
+    // Показать переключатель проектов только owner
+    if(CURRENT_USER?.is_owner){
+      const sw = document.getElementById('project-switcher');
+      if(sw) sw.classList.add('visible');
+      // Мобильный переключатель
+      const mswitch = document.getElementById('mobile-proj-switcher');
+      if(mswitch) mswitch.style.display = '';
+    } else {
+      // Не-owner всегда на pokos
+      CURRENT_PROJECT = 'pokos';
+      localStorage.setItem('crm_project','pokos');
+    }
+    applyProjectUI();
     await populateYearSelector();
     await loadData(SELECTED_YEAR);
     document.getElementById('year-selector').addEventListener('change',()=>{
@@ -5289,12 +5938,19 @@ async function checkAuth(){
       if(y&&y!==SELECTED_YEAR){SELECTED_YEAR=y;loadData(y)}
     });
     document.getElementById('year-refresh').addEventListener('click',()=>loadData(SELECTED_YEAR, true));
-    document.getElementById('tax-payment-date').value = toISODate(new Date());
-  }catch{document.getElementById('login-screen').style.display='flex'}
+    initFp('tax-payment-date');
+    fpSet('tax-payment-date', toISODate(new Date()));
+  }catch(e){
+    console.error('checkAuth: init error (not auth)', e);
+    // НЕ выкидываем на логин — пользователь авторизован, просто что-то упало при загрузке
+    showToast('⚠️ Ошибка при загрузке данных. Попробуйте обновить страницу.');
+  }
 }
 
 function showPage(id,btn){
-  if(id==='service'){setTimeout(svcLoad,50);setTimeout(svcLoadLogs,100);}
+  if(id==='service'){setTimeout(svcLoad,50);setTimeout(svcLoadLogs,100);setTimeout(svcLoadVersion,150);}
+  // Sync bottom tabbar
+  document.querySelectorAll('.mtab-btn[data-page]').forEach(b=>b.classList.toggle('active', b.dataset.page===id));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('#main-nav button').forEach(b=>b.classList.remove('active'));
   document.querySelectorAll('#mobile-nav button').forEach(b=>b.classList.remove('active'));
@@ -5306,23 +5962,31 @@ function showPage(id,btn){
 function syncMobileNav(){}
 
 function mobileNavOpen(){
-  // Блокируем скролл страницы — меню должно быть у нижнего края VIEWPORT
-  document.body.style.overflow='hidden';
-  document.body.style.position='fixed';
-  document.body.style.width='100%';
   document.getElementById('mobile-nav').classList.add('open');
   const ov=document.getElementById('mobile-nav-overlay');
   ov.style.display='block';
   requestAnimationFrame(()=>ov.classList.add('open'));
+  const mb=document.getElementById('mtab-more-btn');
+  if(mb) mb.classList.add('drawer-open');
 }
 function mobileNavClose(){
-  document.body.style.overflow='';
-  document.body.style.position='';
-  document.body.style.width='';
   document.getElementById('mobile-nav').classList.remove('open');
   const ov=document.getElementById('mobile-nav-overlay');
   ov.classList.remove('open');
   setTimeout(()=>{if(!ov.classList.contains('open'))ov.style.display='none';},280);
+  const mb=document.getElementById('mtab-more-btn');
+  if(mb) mb.classList.remove('drawer-open');
+}
+function mobileNavToggle(){
+  const nav=document.getElementById('mobile-nav');
+  if(nav.classList.contains('open')) mobileNavClose();
+  else mobileNavOpen();
+}
+// Sync tabbar active state
+function mobileTabActive(btn){
+  document.querySelectorAll('.mtab-btn[data-page]').forEach(b=>b.classList.remove('active'));
+  if(btn && btn.dataset.page) btn.classList.add('active');
+  mobileNavClose();
 }
 
 function showToast(msg){
@@ -5495,11 +6159,155 @@ function renderAnalytics(d, expenses) {
       }).join('')
     : `<div style="padding:20px;color:var(--ink4);font-size:12px;text-align:center">Нет источников</div>`;
 
+  // ── ВРЕМЯ ─────────────────────────────────────────────────────────────────
+  const t = d.time || {};
+  document.getElementById('an-total-hours').textContent      = t.total_hours != null ? t.total_hours + ' ч' : '—';
+  document.getElementById('an-revenue-per-hour').textContent = t.revenue_per_hour != null ? fmt(t.revenue_per_hour) : '—';
+  document.getElementById('an-avg-hours').textContent        = t.avg_hours_per_deal != null ? t.avg_hours_per_deal + ' ч' : '—';
+  document.getElementById('an-hours-deals-count').textContent = t.deals_with_hours != null ? t.deals_with_hours : '—';
+
   // ── ПОВТОРНЫЕ КЛИЕНТЫ (SVG кольцо) ───────────────────────────────────────
-  const rep = d.repeat;
+  renderRepeatChart(d.repeat);
+
+  // Загружаем асинхронные графики
+  loadSeasonsChart();
+  loadClientMargin();
+  loadWeekdayChart();
+}
+
+async function loadClientMargin() {
+  const wrap = document.getElementById('an-client-margin');
+  if (!wrap) return;
+  try {
+    const data = await api(`/analytics/clients?year=${SELECTED_YEAR}&project=${CURRENT_PROJECT}`);
+    const clients = data.clients || [];
+    if (!clients.length) {
+      wrap.innerHTML = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--ink4)">Нет данных</div>';
+      return;
+    }
+    const maxRev = clients[0]?.revenue || 1;
+    wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="color:var(--ink4);border-bottom:1px solid var(--border)">
+        <th style="text-align:left;padding:6px 8px;font-weight:600">Клиент</th>
+        <th style="text-align:right;padding:6px 8px;font-weight:600">Выезды</th>
+        <th style="text-align:right;padding:6px 8px;font-weight:600">Выручка</th>
+        <th style="text-align:right;padding:6px 8px;font-weight:600">Маржа</th>
+        <th style="text-align:right;padding:6px 8px;font-weight:600">₽/час</th>
+      </tr></thead>
+      <tbody>${clients.map((c, i) => {
+        const pct = Math.round(c.revenue / maxRev * 100);
+        const marginColor = c.margin >= 0 ? 'var(--sage)' : '#ef4444';
+        return `<tr style="border-bottom:1px solid var(--border2)">
+          <td style="padding:8px">
+            <div style="font-weight:500;margin-bottom:3px">${esc(c.name)}</div>
+            <div style="height:4px;background:var(--border2);border-radius:2px">
+              <div style="height:4px;width:${pct}%;background:var(--sage);border-radius:2px"></div>
+            </div>
+          </td>
+          <td style="text-align:right;padding:8px;color:var(--ink3)">${c.deals}</td>
+          <td style="text-align:right;padding:8px;font-weight:600">${fmt(c.revenue)}</td>
+          <td style="text-align:right;padding:8px;color:${marginColor};font-weight:600">${fmt(c.margin)}</td>
+          <td style="text-align:right;padding:8px;color:var(--ink3)">${c.revenue_per_hour ? fmt(c.revenue_per_hour) : "—"}</td>
+        </tr>`;
+      }).join("")}</tbody>
+    </table>`;
+  } catch(e) {
+    if (wrap) wrap.innerHTML = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--ink4)">Нет данных</div>';
+  }
+}
+
+async function loadWeekdayChart() {
+  const wrap = document.getElementById('an-weekday-chart');
+  if (!wrap) return;
+  try {
+    const data = await api(`/analytics/weekdays?year=${SELECTED_YEAR}&project=${CURRENT_PROJECT}`);
+    const days = data.days || [];
+    const maxDeals = Math.max(...days.map(d => d.deals)) || 1;
+    const maxRev = Math.max(...days.map(d => d.revenue)) || 1;
+    wrap.innerHTML = days.map(d => {
+      const dealPct = Math.round(d.deals / maxDeals * 100);
+      const revPct = Math.round(d.revenue / maxRev * 100);
+      const isWeekend = d.day >= 5;
+      const color = isWeekend ? 'var(--sage)' : 'linear-gradient(90deg,#4a7c3f,#5f9a50)';
+      return `<div class="funnel-bar-wrap">
+        <div class="funnel-bar-label">
+          <span style="font-size:12px;font-weight:400;color:${isWeekend ? 'var(--sage)' : 'var(--ink2)'}">${d.label}</span>
+          <strong style="font-weight:600;font-size:11px">${d.deals} выезд${d.deals===1?'':'ов'} · ${d.revenue ? fmt(d.revenue) : '—'}</strong>
+        </div>
+        <div class="funnel-bar-track">
+          <div class="funnel-bar-fill" style="width:${dealPct}%;background:${color}">
+            ${dealPct > 15 ? `<span>${d.deals}</span>` : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join("");
+  } catch(e) {
+    if (wrap) wrap.innerHTML = '<div style="padding:20px;text-align:center;font-size:12px;color:var(--ink4)">Нет данных</div>';
+  }
+}
+
+async function loadSeasonsChart() {
+  const wrap = document.getElementById('an-seasons-chart');
+  const legend = document.getElementById('an-seasons-legend');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--ink4);font-size:12px">Загрузка…</div>';
+  try {
+    const data = await api(`/analytics/seasons?project=${CURRENT_PROJECT}`);
+    if (!data.years?.length) { wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--ink4);font-size:12px">Нет данных</div>'; return; }
+
+    const COLORS = ['#9ca3af', '#4a7c3f', '#f59e0b'];
+    const labels = data.months.map(m => m.label);
+    const maxVal = Math.max(...data.years.flatMap(y => data.revenue[String(y)] || [])) || 1;
+    const W = wrap.clientWidth || 400, H = 180;
+    const PL = 48, PR = 16, PT = 16, PB = 32;
+    const cw = W - PL - PR, ch = H - PT - PB;
+    const step = cw / (labels.length - 1 || 1);
+
+    const toX = i => PL + i * step;
+    const toY = v => PT + ch - (v / maxVal) * ch;
+
+    let svgLines = '', svgDots = '', svgGrid = '';
+
+    // Горизонтальные линии сетки
+    for (let i = 0; i <= 4; i++) {
+      const y = PT + (ch / 4) * i;
+      const val = Math.round(maxVal * (1 - i / 4));
+      svgGrid += `<line x1="${PL}" y1="${y}" x2="${W - PR}" y2="${y}" stroke="var(--border)" stroke-width="1"/>`;
+      svgGrid += `<text x="${PL - 4}" y="${y + 4}" text-anchor="end" font-size="9" fill="var(--ink4)">${val >= 1000 ? Math.round(val/1000)+'к' : val}</text>`;
+    }
+
+    // X метки
+    labels.forEach((lbl, i) => {
+      svgGrid += `<text x="${toX(i)}" y="${H - 4}" text-anchor="middle" font-size="10" fill="var(--ink4)">${lbl}</text>`;
+    });
+
+    // Линии по годам
+    data.years.forEach((y, yi) => {
+      const vals = data.revenue[String(y)] || [];
+      const color = COLORS[yi % COLORS.length];
+      let path = '';
+      vals.forEach((v, i) => {
+        path += (i === 0 ? 'M' : 'L') + `${toX(i)},${toY(v)} `;
+        svgDots += `<circle cx="${toX(i)}" cy="${toY(v)}" r="3" fill="${color}"/>`;
+      });
+      svgLines += `<path d="${path.trim()}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>`;
+    });
+
+    wrap.innerHTML = `<svg width="100%" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">${svgGrid}${svgLines}${svgDots}</svg>`;
+
+    legend.innerHTML = data.years.map((y, yi) => `
+      <div class="chart-legend-item">
+        <div class="chart-legend-dot" style="background:${COLORS[yi % COLORS.length]}"></div>${y}
+      </div>`).join('');
+  } catch(e) {
+    wrap.innerHTML = '<div style="padding:20px;text-align:center;color:var(--ink4);font-size:12px">Нет данных</div>';
+  }
+}
+
+// ── ПОВТОРНЫЕ КЛИЕНТЫ (SVG кольцо) — вызывается из renderAnalytics ────────
+function renderRepeatChart(rep) {
   const total = rep.repeat_count + rep.new_count || 1;
   const repPct = Math.round(rep.repeat_count / total * 100);
-  // SVG donut
   const R = 36, CX = 44, CY = 44, STROKE = 10;
   const circ = 2 * Math.PI * R;
   const repDash = circ * repPct / 100;
@@ -5555,7 +6363,7 @@ function renderBudget(budgetItems, deals, expenses) {
   const totalPlanProfit = totalPlanRev - totalPlanExp;
 
   // Факт: выручка из успешных сделок, расходы
-  const wonStageNames = STAGES.filter(s => s.is_final && s.name.toLowerCase().includes('успешно')).map(s => s.name);
+  const wonStageNames = STAGES.filter(s => isWonStage(s)).map(s => s.name);
   const factRev = deals.filter(d => wonStageNames.includes(d.stage)).reduce((s,d) => s+d.total, 0);
   const factExp = expenses.reduce((s,e) => s+e.amount, 0);
   const factProfit = factRev - factExp;
@@ -5635,6 +6443,7 @@ async function saveBudgetItem() {
     planned_expenses: parseFloat(document.getElementById('bud-exp').value) || 0,
     notes: document.getElementById('bud-notes').value.trim() || null,
     year: SELECTED_YEAR,
+    project: CURRENT_PROJECT,
   };
   try {
     if (_currentBudgetId) {
@@ -5864,10 +6673,11 @@ async function svcLoad() {
     // Расписание
     try {
       const sched = await api('/service/bot/schedule');
-      const tog = document.getElementById('svc-tg-auto-toggle');
       const timeInp = document.getElementById('svc-tg-time-input');
-      if (tog) { tog.checked = sched.enabled; document.getElementById('svc-tg-auto-label').textContent = sched.enabled ? 'вкл' : 'выкл'; }
       if (timeInp && sched.time) timeInp.value = sched.time;
+      _applyToggle('report',  sched.enabled         !== false);
+      _applyToggle('morning', sched.morning_enabled !== false);
+      _applyToggle('evening', sched.evening_enabled !== false);
     } catch(e) {}
 
     if (userIsAdmin()) {
@@ -5884,15 +6694,78 @@ function svcShowResult(id, ok, msg) {
   setTimeout(() => { el.style.display = 'none'; }, 5000);
 }
 
+// ── Переключатель расписания (красивый toggle) ─────────────────────────────
+// _svcScheduleState хранит текущее состояние трёх переключателей
+let _svcScheduleState = { report: false, morning: true, evening: true };
+
+function _applyToggle(key, val) {
+  const el    = document.getElementById(`svc-toggle-${key}`);
+  const knob  = document.getElementById(`svc-toggle-${key}-knob`);
+  const lbl   = document.getElementById(`svc-toggle-${key}-lbl`);
+  if (!el) return;
+  _svcScheduleState[key] = val;
+  el.style.background   = val ? 'var(--sage)' : 'var(--border)';
+  knob.style.transform  = val ? 'translateX(16px)' : 'translateX(0)';
+  lbl.textContent       = val ? 'вкл' : 'выкл';
+  lbl.style.color       = val ? 'var(--sage)' : 'var(--ink3)';
+}
+
+async function svcToggleSchedule(key) {
+  _applyToggle(key, !_svcScheduleState[key]);
+  await svcSaveSchedule();
+}
+
 async function svcSaveSchedule() {
-  const tog = document.getElementById('svc-tg-auto-toggle');
   const timeInp = document.getElementById('svc-tg-time-input');
-  const lbl = document.getElementById('svc-tg-auto-label');
-  if (lbl) lbl.textContent = tog.checked ? 'вкл' : 'выкл';
   try {
-    await api('/service/bot/schedule', {method:'POST', body: JSON.stringify({enabled: tog.checked, time: timeInp.value})});
-    svcShowResult('svc-tg-result', true, `Расписание сохранено: ${tog.checked ? 'вкл, ' + timeInp.value : 'выкл'}`);
+    await api('/service/bot/schedule', { method: 'POST', body: JSON.stringify({
+      enabled:         _svcScheduleState.report,
+      morning_enabled: _svcScheduleState.morning,
+      evening_enabled: _svcScheduleState.evening,
+      time: timeInp ? timeInp.value : '18:00',
+    })});
+    const parts = [];
+    if (_svcScheduleState.report)  parts.push('отчёт');
+    if (_svcScheduleState.morning) parts.push('утро');
+    if (_svcScheduleState.evening) parts.push('вечер');
+    svcShowResult('svc-tg-result', true, parts.length ? `Включено: ${parts.join(', ')}` : 'Все уведомления выключены');
   } catch(e) { svcShowResult('svc-tg-result', false, e.message); }
+}
+
+async function svcSendCheckup(btnEl) {
+  if (btnEl) btnEl.disabled = true;
+  try {
+    const d = await api('/service/run-checkup', { method: 'POST' });
+    svcShowResult('svc-tg-result', true, d.message || 'Checkup запущен');
+  } catch(e) { svcShowResult('svc-tg-result', false, e.message); }
+  finally { setTimeout(() => { if (btnEl) btnEl.disabled = false; }, 3000); }
+}
+
+async function svcLoadVersion() {
+  const grid = document.getElementById('svc-version-grid');
+  if (!grid) return;
+  try {
+    const d = await api('/version');
+    const uptime = d.uptime_sec ? `${Math.floor(d.uptime_sec/3600)}ч ${Math.floor((d.uptime_sec%3600)/60)}м` : '—';
+    const rows = [
+      { label: 'Backend',     value: d.backend },
+      { label: 'API версия',  value: d.api },
+      { label: 'Git commit',  value: d.commit, sub: d.commit_date },
+      { label: 'Python',      value: d.python },
+      { label: 'FastAPI',     value: d.fastapi },
+      { label: 'SQLAlchemy',  value: d.sqlalchemy },
+      { label: 'База данных', value: (d.database || '').replace('PostgreSQL ', 'PG ') },
+      { label: 'Uptime',      value: uptime },
+    ];
+    grid.innerHTML = rows.map(r => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px">
+        <div style="font-size:10px;color:var(--ink4);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">${r.label}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--ink);font-family:'Playfair Display',serif">${r.value || '—'}</div>
+        ${r.sub ? `<div style="font-size:10px;color:var(--ink4);margin-top:2px">${r.sub}</div>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    if (grid) grid.innerHTML = '<div style="font-size:12px;color:var(--ink4)">Недоступно</div>';
+  }
 }
 
 async function svcDbCheck() {
@@ -6180,6 +7053,77 @@ async function svcRestart() {
   } catch(e) { /* тост уже показан */ }
 }
 
+// ── AUDIT LOG ─────────────────────────────────────────────────────────────────
+let _auditOffset = 0;
+const _auditLimit = 50;
+let _auditTotal = 0;
+
+async function auditLoad(resetPage = true) {
+  if (resetPage) _auditOffset = 0;
+  const table  = document.getElementById('audit-filter-table')?.value.trim() || '';
+  const action = document.getElementById('audit-filter-action')?.value || '';
+  const user   = document.getElementById('audit-filter-user')?.value.trim() || '';
+  const from   = document.getElementById('audit-filter-from')?.value || '';
+  const to     = document.getElementById('audit-filter-to')?.value || '';
+
+  let qs = `?limit=${_auditLimit}&offset=${_auditOffset}`;
+  if (table)  qs += `&table_name=${encodeURIComponent(table)}`;
+  if (action) qs += `&action=${encodeURIComponent(action)}`;
+  if (user)   qs += `&changed_by=${encodeURIComponent(user)}`;
+  if (from)   qs += `&date_from=${encodeURIComponent(from)}`;
+  if (to)     qs += `&date_to=${encodeURIComponent(to + 'T23:59:59')}`;
+
+  const tbody = document.getElementById('audit-tbody');
+  tbody.innerHTML = `<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--ink4)">Загрузка…</td></tr>`;
+  try {
+    const data = await api(`/admin/audit-log${qs}`);
+    _auditTotal = data.total || 0;
+    document.getElementById('audit-total').textContent = `Найдено записей: ${_auditTotal}`;
+
+    const actionColors = { INSERT: '#10b981', UPDATE: '#f59e0b', DELETE: '#ef4444' };
+    if (!data.items?.length) {
+      tbody.innerHTML = `<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--ink4)">Записей не найдено</td></tr>`;
+    } else {
+      tbody.innerHTML = data.items.map(r => {
+        const color = actionColors[r.action] || 'var(--ink3)';
+        const dt = r.changed_at ? new Date(r.changed_at).toLocaleString('ru-RU') : '—';
+        const changes = _auditChanges(r.changes);
+        return `<tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:8px;color:var(--ink3);white-space:nowrap">${dt}</td>
+          <td style="padding:8px;font-weight:500">${r.table_name || '—'} <span style="color:var(--ink4);font-size:10px">#${r.record_id ?? ''}</span></td>
+          <td style="padding:8px"><span style="color:${color};font-weight:600;font-size:11px">${r.action}</span></td>
+          <td style="padding:8px;color:var(--ink3)">${r.changed_by || r.user_id || '—'}</td>
+          <td style="padding:8px;font-size:11px;color:var(--ink3);max-width:300px;overflow:hidden;text-overflow:ellipsis">${changes}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    const page = Math.floor(_auditOffset / _auditLimit) + 1;
+    const pages = Math.ceil(_auditTotal / _auditLimit) || 1;
+    document.getElementById('audit-page-info').textContent = `Стр. ${page} / ${pages}`;
+    document.getElementById('audit-prev-btn').disabled = _auditOffset === 0;
+    document.getElementById('audit-next-btn').disabled = _auditOffset + _auditLimit >= _auditTotal;
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--red)">Ошибка загрузки</td></tr>`;
+  }
+}
+
+function auditPage(dir) {
+  _auditOffset = Math.max(0, _auditOffset + dir * _auditLimit);
+  auditLoad(false);
+}
+
+function _auditChanges(changes) {
+  try {
+    if (!changes) return '—';
+    if (typeof changes === 'string') {
+      const parsed = JSON.parse(changes);
+      return Object.entries(parsed).slice(0, 5).map(([k,v]) => `${k}: ${v}`).join(' · ');
+    }
+    return Object.entries(changes).slice(0, 5).map(([k,v]) => `${k}: ${v}`).join(' · ');
+  } catch { return String(changes || '—'); }
+}
+
 // ══════════════════════════════════════════════════════════════
 // CALENDAR
 // ══════════════════════════════════════════════════════════════
@@ -6277,8 +7221,7 @@ function calTasksForDate(iso) {
 
 function calDealsForDate(iso) {
     return _calDeals.filter(d => {
-        if (!d.created_at && !d.deal_date) return false;
-        const dt = d.deal_date || d.created_at;
+        const dt = d.work_date || d.deal_date || d.created_at;
         return dt && dt.slice(0,10) === iso;
     });
 }
@@ -6473,10 +7416,8 @@ async function calDrop(e, iso) {
 
 // ── Click on empty cell → create task ────────────────────────
 function calCellClick(iso) {
-    // Открываем модалку задачи с предзаполненной датой
     openTaskModal(null).then(() => {
-        const dateEl = document.getElementById('t-date');
-        if (dateEl) dateEl.value = iso;
+        fpSet('t-date', iso);
     }).catch(() => {});
 }
 

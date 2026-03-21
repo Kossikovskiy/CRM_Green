@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-GrassCRM Telegram Bot — bot.py v1.3
+GrassCRM Telegram Bot — bot.py v1.4
 - Позволяет создавать сделки через интерактивный диалог с категориями услуг.
 - Автоматически отправляет ежедневные отчеты.
+- Напоминание о выездах на завтра утром.
 - Корректно удаляет за собой сообщения, оставляя только итоговый результат.
 """
 
@@ -1161,6 +1162,25 @@ async def send_report_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f"Ошибка: {e}")
 
 
+async def send_tomorrow_reminder_job(context: ContextTypes.DEFAULT_TYPE):
+    """Утреннее напоминание о выездах на завтра — шлём владельцу в личку."""
+    tomorrow = date.today() + timedelta(days=1)
+    try:
+        msg = await schedule_for_day(tomorrow)
+        # Шлём только если есть выезды
+        if "нет" not in msg:
+            await context.bot.send_message(
+                chat_id=OWNER_ID,
+                text=f"🌅 <b>Напоминание: выезды на завтра</b>\n\n{msg}",
+                parse_mode='HTML'
+            )
+            logger.info(f"Напоминание о выездах на завтра отправлено.")
+        else:
+            logger.info("Выездов на завтра нет — напоминание не отправляем.")
+    except Exception as e:
+        logger.error(f"Ошибка при отправке напоминания: {e}")
+
+
 # ════════════════════════════════════════
 #  🚀  ЗАПУСК БОТА
 # ════════════════════════════════════════
@@ -1173,16 +1193,22 @@ async def send_report_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def _post_init(application) -> None:
     """Отправляет уведомление владельцу при старте бота."""
     try:
-        await application.bot.send_message(
+        # Предварительное сообщение — сервер поднялся, ждём службы
+        msg = await application.bot.send_message(
             chat_id=OWNER_ID,
             text=(
-                "Сервер запущен\n\n"
+                "🚀 Сервер запущен\n\n"
                 "Службы:\n"
                 "  · Telegram бот — ✅\n"
-                "  · CRM API — проверяю..."
+                "  · CRM API — ⏳ ожидание запуска...\n"
+                "  · Ассистент-бот — ⏳ ожидание запуска..."
             )
         )
-        # Проверяем API
+
+        # Ждём 20 секунд, пока все службы успеют подняться
+        await asyncio.sleep(20)
+
+        # Проверяем CRM API
         api_ok = False
         try:
             async with httpx.AsyncClient(timeout=5) as client:
@@ -1191,14 +1217,32 @@ async def _post_init(application) -> None:
         except Exception:
             pass
 
-        status = "✅" if api_ok else "❌"
-        await application.bot.send_message(
-            chat_id=OWNER_ID,
-            text=(
-                "GrassCRM запущен\n\n"
-                f"  · Telegram бот — ✅\n"
-                f"  · CRM API — {status}"
-            )
+        # Проверяем ассистент-бот
+        assistant_status = "❌ токен не задан"
+        if ASSISTANT_BOT_TOKEN:
+            try:
+                async with httpx.AsyncClient(timeout=5) as client:
+                    r = await client.get(
+                        f"https://api.telegram.org/bot{ASSISTANT_BOT_TOKEN}/getMe"
+                    )
+                    data = r.json()
+                if data.get("ok"):
+                    uname = data["result"].get("username", "assistant")
+                    assistant_status = f"✅ @{uname}"
+                else:
+                    assistant_status = f"❌ {data.get('description', 'ошибка')}"
+            except Exception as e:
+                assistant_status = f"❌ {e}"
+
+        api_status = "✅" if api_ok else "❌"
+
+        # Редактируем исходное сообщение с финальным статусом
+        await msg.edit_text(
+            "🚀 GrassCRM запущен\n\n"
+            "Службы:\n"
+            f"  · Telegram бот — ✅\n"
+            f"  · CRM API — {api_status}\n"
+            f"  · Ассистент-бот — {assistant_status}"
         )
     except Exception as e:
         logger.warning(f"Не удалось отправить startup-уведомление: {e}")
@@ -1275,6 +1319,9 @@ def main() -> None:
         job_queue = application.job_queue
         report_time = time(hour=18, minute=0, tzinfo=pytz.timezone('Europe/Moscow'))
         job_queue.run_daily(send_report_job, time=report_time)
+        # Напоминание о выездах на завтра — каждый день в 20:00 МСК
+        reminder_time = time(hour=20, minute=0, tzinfo=pytz.timezone('Europe/Moscow'))
+        job_queue.run_daily(send_tomorrow_reminder_job, time=reminder_time)
     else:
         logger.warning("TELEGRAM_CHAT_ID не установлен: авто-отчет отключен, ручные команды доступны.")
 

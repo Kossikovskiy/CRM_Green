@@ -467,7 +467,8 @@ async def _tool_get_tasks(data: Dict) -> str:
 async def _tool_get_deals(data: Dict) -> str:
     """Получить сделки из CRM."""
     try:
-        deals = await _crm_get("/deals")
+        deals_r = await _crm_get("/deals")
+        deals = deals_r.get("deals", []) if isinstance(deals_r, dict) else (deals_r or [])
         if not deals:
             return "💬 Сделок нет."
 
@@ -527,7 +528,8 @@ async def _tool_get_expenses(data: Dict) -> str:
 async def _tool_get_stats() -> str:
     """Получить краткую статистику из CRM."""
     try:
-        deals = await _crm_get("/deals")
+        deals_r = await _crm_get("/deals")
+        deals = deals_r.get("deals", []) if isinstance(deals_r, dict) else (deals_r or [])
         expenses = await _crm_get("/expenses?year=2026")
         tasks = await _crm_get("/tasks")
 
@@ -593,7 +595,8 @@ async def _tool_get_report(period: str) -> str:
     """Сводный отчёт за период."""
     try:
         from datetime import timedelta
-        deals = await _crm_get("/deals")
+        deals_r = await _crm_get("/deals")
+        deals = deals_r.get("deals", []) if isinstance(deals_r, dict) else (deals_r or [])
         expenses = await _crm_get("/expenses?year=2026")
         tasks = await _crm_get("/tasks")
 
@@ -1323,7 +1326,8 @@ ACTIVE_STAGE_NAMES = {"согласовать", "в работе", "ожидан
 async def _get_active_deals() -> List[Dict]:
     """Вернуть список активных сделок (согласовать / в работе / ожидание)."""
     try:
-        deals = await _crm_get("/deals")
+        deals_r = await _crm_get("/deals")
+        deals = deals_r.get("deals", []) if isinstance(deals_r, dict) else (deals_r or [])
         active = [
             d for d in deals
             if not d.get("stage_is_final")
@@ -2398,6 +2402,38 @@ async def _send_to_owner(text: str) -> None:
         logger.warning(f"Proactive send error: {e}")
 
 
+async def _send_direct(telegram_id: str, text: str) -> None:
+    """Отправить личное сообщение пользователю через ассистент-бота."""
+    if not telegram_id or not ASSISTANT_BOT_TOKEN:
+        return
+    try:
+        url = f"https://api.telegram.org/bot{ASSISTANT_BOT_TOKEN}/sendMessage"
+        async with httpx.AsyncClient(timeout=10) as c:
+            r = await c.post(url, json={
+                "chat_id": int(telegram_id),
+                "text": text,
+                "parse_mode": "HTML",
+            })
+            if not r.is_success:
+                logger.warning(f"_send_direct to {telegram_id} failed: {r.text[:100]}")
+    except Exception as e:
+        logger.warning(f"_send_direct error: {e}")
+
+
+async def _get_users_telegram_map() -> dict:
+    """Возвращает {user_id: telegram_id} для всех пользователей у кого есть telegram_id."""
+    try:
+        users = await _crm_get("/users") or []
+        return {
+            u["id"]: u["telegram_id"]
+            for u in users
+            if u.get("telegram_id")
+        }
+    except Exception as e:
+        logger.warning(f"_get_users_telegram_map error: {e}")
+        return {}
+
+
 async def _build_proactive_summary() -> str:
     """Собрать сводку для proactive анализа."""
     try:
@@ -2407,7 +2443,8 @@ async def _build_proactive_summary() -> str:
         month_prefix = today.strftime("%Y-%m")
 
         tasks    = await _crm_get("/tasks") or []
-        deals    = await _crm_get("/deals") or []
+        deals_r  = await _crm_get("/deals") or {}
+        deals    = deals_r.get("deals", []) if isinstance(deals_r, dict) else (deals_r or [])
         expenses = await _crm_get(f"/expenses?year={today.year}") or []
 
         # Просроченные задачи
@@ -2423,7 +2460,7 @@ async def _build_proactive_summary() -> str:
             if str(t.get("due_date") or "")[:10] == tomorrow.isoformat()
         ]
 
-        # Активные сделки без изменений (нет work_date в ближайшие 7 дней)
+        # Активные сделки
         active_deals = [d for d in deals if not d.get("is_closed")]
 
         # Финансы за месяц
@@ -2432,11 +2469,7 @@ async def _build_proactive_summary() -> str:
             if str(e.get("date") or "")[:7] == month_prefix
         )
         won_deals = [d for d in deals if d.get("is_closed") and d.get("total")]
-        # Приближённо — выручка закрытых в этом месяце
-        month_rev = sum(
-            float(d.get("total") or 0) for d in won_deals
-            # нет поля месяца закрытия в API — берём все
-        )
+        month_rev = sum(float(d.get("total") or 0) for d in won_deals)
 
         lines = [
             f"Дата: {today.isoformat()}",
@@ -2453,10 +2486,49 @@ async def _build_proactive_summary() -> str:
         return ""
 
 
+async def _notify_assignees_overdue(tasks: list, tg_map: dict) -> None:
+    """Отправить каждому исполнителю его просроченные задачи личным сообщением."""
+    from datetime import date as _date
+    today = _date.today()
+
+    overdue = [
+        t for t in tasks
+        if t.get("due_date") and str(t["due_date"])[:10] < today.isoformat()
+        and (t.get("status") or "").lower() not in ("завершена", "выполнена", "done")
+    ]
+    if not overdue:
+        return
+
+    # Группируем по assignee (это user_id)
+    by_assignee: dict = {}
+    for t in overdue:
+        uid = t.get("assignee")
+        if uid:
+            by_assignee.setdefault(uid, []).append(t)
+
+    for uid, user_tasks in by_assignee.items():
+        tg_id = tg_map.get(uid)
+        if not tg_id:
+            continue  # нет привязки — пропускаем
+        lines = [f"⚠️ <b>Просроченные задачи ({len(user_tasks)})</b>\n"]
+        for t in user_tasks[:10]:
+            due = str(t.get("due_date") or "")[:10]
+            lines.append(f"  • {t.get('title','?')} — срок был <b>{due}</b>")
+        lines.append("\nРазбери сегодня 👆")
+        await _send_direct(tg_id, "\n".join(lines))
+        logger.info(f"Proactive: уведомление отправлено пользователю {uid} (tg={tg_id})")
+
+
 async def proactive_morning_check(context) -> None:
     """Утренняя проверка — 9:00 по Москве."""
     logger.info("Proactive: утренняя проверка...")
     try:
+        # Уведомить исполнителей об их просроченных задачах
+        tasks   = await _crm_get("/tasks") or []
+        tg_map  = await _get_users_telegram_map()
+        await _notify_assignees_overdue(tasks, tg_map)
+
+        # Общая сводка владельцу
         summary = await _build_proactive_summary()
         if not summary:
             return
